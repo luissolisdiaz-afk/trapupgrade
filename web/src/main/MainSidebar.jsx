@@ -6,17 +6,11 @@ import { makeStyles } from 'tss-react/mui';
 import dayjs from 'dayjs';
 import MapIcon from '@mui/icons-material/Map';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import AltRouteIcon from '@mui/icons-material/AltRoute';
-import PinDropIcon from '@mui/icons-material/PinDrop';
-import CreateIcon from '@mui/icons-material/Create';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import SettingsIcon from '@mui/icons-material/Settings';
-import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import { useManager } from '../common/util/permissions';
 
 export const SIDEBAR_WIDTH = 208;
 
@@ -87,7 +81,6 @@ const MainSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const manager = useManager();
   const server = useSelector((state) => state.session.server);
   const socket = useSelector((state) => state.session.socket);
   const devices = useSelector((state) => state.devices.items);
@@ -117,41 +110,6 @@ const MainSidebar = () => {
     },
     { key: 'map', title: t('mapTitle'), icon: <MapIcon />, link: '/', match: (p) => p === '/' },
     {
-      key: 'reports',
-      title: t('reportTitle'),
-      icon: <BarChartIcon />,
-      link: report('/reports/combined'),
-      match: (p) => p.startsWith('/reports/combined'),
-    },
-    {
-      key: 'events',
-      title: t('reportEvents'),
-      icon: <NotificationsIcon />,
-      link: report('/reports/events'),
-      match: (p) => p.startsWith('/reports/events'),
-    },
-    {
-      key: 'trips',
-      title: t('reportTrips'),
-      icon: <AltRouteIcon />,
-      link: report('/reports/trips'),
-      match: (p) => p.startsWith('/reports/trips'),
-    },
-    {
-      key: 'stops',
-      title: t('reportStops'),
-      icon: <PinDropIcon />,
-      link: report('/reports/stops'),
-      match: (p) => p.startsWith('/reports/stops'),
-    },
-    {
-      key: 'geofences',
-      title: t('sharedGeofences'),
-      icon: <CreateIcon />,
-      link: '/geofences',
-      match: (p) => p.startsWith('/geofences'),
-    },
-    {
       key: 'cameras',
       title: t('cameraTitle'),
       icon: <VideocamIcon />,
@@ -159,23 +117,19 @@ const MainSidebar = () => {
       match: (p) => p.startsWith('/cameras'),
     },
     {
+      key: 'reports',
+      title: t('reportTitle'),
+      icon: <BarChartIcon />,
+      link: report('/reports/combined'),
+      match: (p) => p.startsWith('/reports') || p.startsWith('/builder'),
+    },
+    {
       key: 'settings',
       title: t('settingsTitle'),
       icon: <SettingsIcon />,
       link: '/settings/preferences?menu=true',
-      match: (p) => p.startsWith('/settings') && !p.startsWith('/settings/users'),
+      match: (p) => p.startsWith('/settings') || p.startsWith('/geofences'),
     },
-    ...(manager
-      ? [
-          {
-            key: 'users',
-            title: t('settingsUsers'),
-            icon: <PeopleIcon />,
-            link: '/settings/users',
-            match: (p) => p.startsWith('/settings/users'),
-          },
-        ]
-      : []),
   ];
 
   return (

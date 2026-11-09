@@ -118,7 +118,8 @@ const LoginPage = () => {
         const user = await response.json();
         generateLoginToken();
         dispatch(sessionActions.updateUser(user));
-        const target = window.sessionStorage.getItem('postLogin') || '/';
+        const saved = window.sessionStorage.getItem('postLogin');
+        const target = !saved || saved === '/' ? '/dashboard' : saved;
         window.sessionStorage.removeItem('postLogin');
         navigate(target, { replace: true });
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
@@ -138,7 +139,7 @@ const LoginPage = () => {
     if (response.ok) {
       const user = await response.json();
       dispatch(sessionActions.updateUser(user));
-      navigate('/');
+      navigate('/dashboard');
     } else if (response.status === 401) {
       nativePostMessage('logout');
     }

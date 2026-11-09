@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMediaQuery, useTheme } from '@mui/material';
@@ -50,6 +51,19 @@ const App = () => {
     });
     dispatch(sessionActions.updateUser(await response.json()));
   });
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      if (!window.sessionStorage.getItem('landed')) {
+        window.sessionStorage.setItem('landed', '1');
+        if (location.pathname === '/') navigate('/dashboard', { replace: true });
+      }
+    } catch {
+      // sessionStorage no disponible
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useAsyncTask(
     async ({ signal }) => {
