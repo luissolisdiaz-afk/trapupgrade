@@ -45,6 +45,7 @@ const StatisticsPage = lazy(() => import('./reports/StatisticsPage'));
 const LoginPage = lazy(() => import('./login/LoginPage'));
 const RegisterPage = lazy(() => import('./login/RegisterPage'));
 const ResetPasswordPage = lazy(() => import('./login/ResetPasswordPage'));
+const NotificationTemplatesPage = lazy(() => import('./settings/NotificationTemplatesPage'));
 const DashboardPage = lazy(() => import('./dashboard/DashboardPage'));
 const GeofencesPage = lazy(() => import('./other/GeofencesPage'));
 const GeofencePage = lazy(() => import('./settings/GeofencePage'));
@@ -182,6 +183,7 @@ const Navigation = () => {
             <Route path="maintenance/:id" element={<MaintenancePage />} />
             <Route path="maintenance" element={<MaintenancePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="notification-texts" element={<NotificationTemplatesPage />} />
             <Route path="notification/:id" element={<NotificationPage />} />
             <Route path="notification" element={<NotificationPage />} />
             <Route path="preferences" element={<PreferencesPage />} />

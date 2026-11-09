@@ -1,42 +1,3 @@
-From ed7193d3a97f6431171904222939d1e01633d310 Mon Sep 17 00:00:00 2001
-From: Claude <noreply@anthropic.com>
-Date: Sat, 7 Nov 2026 23:36:13 -0300
-Subject: [PATCH] Add device recordings API and per-device speed limit source
-
-- JT/T 1078 recording list query/playback (0x9205/0x1205, 0x9201/0x9202)
-  with RecordingResource REST endpoints under api/recordings
-- speedLimitMode (fixed/map/lowest) and speedLimitMultiplier per device/group
-- Cache for map speed limit lookups (speedLimit.cacheTtl)
-
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01ShZ5eXfUPvoKxatq2qnXWj
----
- src/main/java/org/traccar/MainModule.java     |  10 +-
- .../api/resource/RecordingResource.java       | 140 ++++++++++++++++++
- src/main/java/org/traccar/config/Keys.java    |  25 ++++
- .../traccar/handler/SpeedLimitHandler.java    |  14 +-
- .../handler/events/OverspeedEventHandler.java |  13 +-
- .../java/org/traccar/media/Recording.java     |  24 +++
- .../org/traccar/media/RecordingManager.java   |  58 ++++++++
- .../org/traccar/media/RecordingParser.java    |  74 +++++++++
- src/main/java/org/traccar/model/Command.java  |   5 +
- .../org/traccar/protocol/Jt808Protocol.java   |   5 +-
- .../protocol/Jt808ProtocolDecoder.java        |  65 ++++++++
- .../protocol/Jt808ProtocolEncoder.java        |  46 ++++++
- .../session/state/OverspeedProcessor.java     |  16 ++
- .../speedlimit/CachingSpeedLimitProvider.java |  92 ++++++++++++
- .../events/OverspeedEventHandlerTest.java     |  11 ++
- .../traccar/media/RecordingParserTest.java    |  75 ++++++++++
- .../CachingSpeedLimitProviderTest.java        |  81 ++++++++++
- 17 files changed, 744 insertions(+), 10 deletions(-)
- create mode 100644 src/main/java/org/traccar/api/resource/RecordingResource.java
- create mode 100644 src/main/java/org/traccar/media/Recording.java
- create mode 100644 src/main/java/org/traccar/media/RecordingManager.java
- create mode 100644 src/main/java/org/traccar/media/RecordingParser.java
- create mode 100644 src/main/java/org/traccar/speedlimit/CachingSpeedLimitProvider.java
- create mode 100644 src/test/java/org/traccar/media/RecordingParserTest.java
- create mode 100644 src/test/java/org/traccar/speedlimit/CachingSpeedLimitProviderTest.java
-
 diff --git a/src/main/java/org/traccar/MainModule.java b/src/main/java/org/traccar/MainModule.java
 index 524430e..6eccebb 100644
 --- a/src/main/java/org/traccar/MainModule.java
@@ -76,6 +37,101 @@ index 524430e..6eccebb 100644
          }
          return null;
      }
+diff --git a/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
+new file mode 100644
+index 0000000..8d5fb56
+--- /dev/null
++++ b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
+@@ -0,0 +1,89 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.api.resource;
++
++import jakarta.inject.Inject;
++import jakarta.ws.rs.Consumes;
++import jakarta.ws.rs.DELETE;
++import jakarta.ws.rs.GET;
++import jakarta.ws.rs.PUT;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.PathParam;
++import jakarta.ws.rs.Produces;
++import jakarta.ws.rs.WebApplicationException;
++import jakarta.ws.rs.core.MediaType;
++import jakarta.ws.rs.core.Response;
++import org.traccar.api.BaseResource;
++import org.traccar.notification.CustomTemplateStore;
++
++import java.io.IOException;
++import java.util.Map;
++
++/**
++ * Notification texts customized by the current user. Without a custom text the predefined template is used.
++ */
++@Path("notificationtemplates")
++@Produces(MediaType.APPLICATION_JSON)
++@Consumes(MediaType.APPLICATION_JSON)
++public class NotificationTemplateResource extends BaseResource {
++
++    @Inject
++    private CustomTemplateStore store;
++
++    private static WebApplicationException badRequest(String message) {
++        return new WebApplicationException(Response.status(Response.Status.BAD_REQUEST).entity(message).build());
++    }
++
++    @GET
++    public Map<String, Map<String, String>> get() {
++        return store.getAll(getUserId());
++    }
++
++    @PUT
++    @Path("{name}")
++    public Response put(@PathParam("name") String name, Map<String, String> body) {
++        if (!CustomTemplateStore.isValidName(name)) {
++            throw badRequest("Invalid name");
++        }
++        String subject = body != null ? body.get("subject") : null;
++        String text = body != null ? body.get("body") : null;
++        if (subject == null || text == null || subject.isBlank() || text.isBlank()) {
++            throw badRequest("Subject and body are required");
++        }
++        if (subject.length() > CustomTemplateStore.MAX_LENGTH || text.length() > CustomTemplateStore.MAX_LENGTH) {
++            throw badRequest("Text too long");
++        }
++        try {
++            store.set(getUserId(), name, subject, text);
++        } catch (IOException e) {
++            throw new WebApplicationException(e);
++        }
++        return Response.noContent().build();
++    }
++
++    @DELETE
++    @Path("{name}")
++    public Response delete(@PathParam("name") String name) {
++        if (!CustomTemplateStore.isValidName(name)) {
++            throw badRequest("Invalid name");
++        }
++        try {
++            store.delete(getUserId(), name);
++        } catch (IOException e) {
++            throw new WebApplicationException(e);
++        }
++        return Response.noContent().build();
++    }
++
++}
 diff --git a/src/main/java/org/traccar/api/resource/RecordingResource.java b/src/main/java/org/traccar/api/resource/RecordingResource.java
 new file mode 100644
 index 0000000..5e24ed3
@@ -534,6 +590,249 @@ index 7b57888..c034db2 100644
  
      @QueryIgnore
      @Override
+diff --git a/src/main/java/org/traccar/notification/CustomTemplateStore.java b/src/main/java/org/traccar/notification/CustomTemplateStore.java
+new file mode 100644
+index 0000000..845256c
+--- /dev/null
++++ b/src/main/java/org/traccar/notification/CustomTemplateStore.java
+@@ -0,0 +1,111 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.notification;
++
++import com.fasterxml.jackson.core.type.TypeReference;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import jakarta.inject.Inject;
++import jakarta.inject.Singleton;
++import org.traccar.config.Config;
++import org.traccar.config.Keys;
++
++import java.io.IOException;
++import java.nio.file.DirectoryStream;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.util.HashMap;
++import java.util.Map;
++
++/**
++ * Per user notification texts written by the users themselves. They are plain text with {placeholders}, never
++ * template code, so they are safe to be edited by regular users. When a user has no custom text for an event type,
++ * the predefined template is used.
++ */
++@Singleton
++public class CustomTemplateStore {
++
++    public static final int MAX_LENGTH = 2000;
++
++    private static final String SUFFIX = ".json";
++
++    private final Path root;
++    private final ObjectMapper objectMapper;
++
++    @Inject
++    public CustomTemplateStore(Config config, ObjectMapper objectMapper) {
++        this.root = Paths.get(config.getString(Keys.TEMPLATES_ROOT), "custom");
++        this.objectMapper = objectMapper;
++    }
++
++    public static boolean isValidName(String name) {
++        return name != null && name.matches("^[A-Za-z]{1,40}$");
++    }
++
++    private Path file(long userId, String name) {
++        if (!isValidName(name)) {
++            throw new IllegalArgumentException("Invalid template name");
++        }
++        return root.resolve(Long.toString(userId)).resolve(name + SUFFIX);
++    }
++
++    public Map<String, String> get(long userId, String name) {
++        Path file = file(userId, name);
++        if (!Files.isRegularFile(file)) {
++            return null;
++        }
++        try {
++            return objectMapper.readValue(file.toFile(), new TypeReference<Map<String, String>>() { });
++        } catch (IOException e) {
++            return null;
++        }
++    }
++
++    public Map<String, Map<String, String>> getAll(long userId) {
++        Map<String, Map<String, String>> result = new HashMap<>();
++        Path dir = root.resolve(Long.toString(userId));
++        if (!Files.isDirectory(dir)) {
++            return result;
++        }
++        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*" + SUFFIX)) {
++            for (Path path : stream) {
++                String fileName = path.getFileName().toString();
++                String name = fileName.substring(0, fileName.length() - SUFFIX.length());
++                if (isValidName(name)) {
++                    Map<String, String> value = get(userId, name);
++                    if (value != null) {
++                        result.put(name, value);
++                    }
++                }
++            }
++        } catch (IOException e) {
++            return result;
++        }
++        return result;
++    }
++
++    public void set(long userId, String name, String subject, String body) throws IOException {
++        Path file = file(userId, name);
++        Files.createDirectories(file.getParent());
++        Map<String, String> value = new HashMap<>();
++        value.put("subject", subject);
++        value.put("body", body);
++        objectMapper.writeValue(file.toFile(), value);
++    }
++
++    public void delete(long userId, String name) throws IOException {
++        Files.deleteIfExists(file(userId, name));
++    }
++
++}
+diff --git a/src/main/java/org/traccar/notification/NotificationFormatter.java b/src/main/java/org/traccar/notification/NotificationFormatter.java
+index 71ae26d..b91a452 100644
+--- a/src/main/java/org/traccar/notification/NotificationFormatter.java
++++ b/src/main/java/org/traccar/notification/NotificationFormatter.java
+@@ -32,6 +32,9 @@ import org.traccar.session.cache.CacheManager;
+ 
+ import jakarta.inject.Inject;
+ import jakarta.inject.Singleton;
++import java.time.format.DateTimeFormatter;
++import java.util.Map;
++import java.util.TimeZone;
+ 
+ @Singleton
+ public class NotificationFormatter {
+@@ -39,13 +42,97 @@ public class NotificationFormatter {
+     private final LocaleManager localeManager;
+     private final CacheManager cacheManager;
+     private final TextTemplateFormatter textTemplateFormatter;
++    private final CustomTemplateStore customTemplateStore;
+ 
+     @Inject
+     public NotificationFormatter(
+-            LocaleManager localeManager, CacheManager cacheManager, TextTemplateFormatter textTemplateFormatter) {
++            LocaleManager localeManager, CacheManager cacheManager, TextTemplateFormatter textTemplateFormatter,
++            CustomTemplateStore customTemplateStore) {
+         this.localeManager = localeManager;
+         this.cacheManager = cacheManager;
+         this.textTemplateFormatter = textTemplateFormatter;
++        this.customTemplateStore = customTemplateStore;
++    }
++
++    private static String escapeHtml(String value) {
++        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
++    }
++
++    private static String capitalize(String value) {
++        return value.isEmpty() ? value : Character.toUpperCase(value.charAt(0)) + value.substring(1);
++    }
++
++    private static String formatSpeed(double knots, String unit) {
++        if ("mph".equals(unit)) {
++            return String.format("%.1f mph", knots * 1.15078);
++        } else if ("kn".equals(unit)) {
++            return String.format("%.1f kn", knots);
++        }
++        return String.format("%.1f km/h", knots * 1.852);
++    }
++
++    private static String replace(String text, Map<String, String> values) {
++        String result = text;
++        for (Map.Entry<String, String> entry : values.entrySet()) {
++            result = result.replace("{" + entry.getKey() + "}", entry.getValue());
++        }
++        return result;
++    }
++
++    @SuppressWarnings("unchecked")
++    private NotificationMessage formatCustom(
++            Map<String, String> custom, VelocityContext context, Device device, Event event, Position position,
++            boolean priority) {
++
++        Map<String, String> translations = (Map<String, String>) context.get("translations");
++        TimeZone timezone = (TimeZone) context.get("timezone");
++        String webUrl = String.valueOf(context.get("webUrl"));
++        Geofence geofence = (Geofence) context.get("geofence");
++
++        String alarm = event.getString("alarm");
++        String alarmText = "";
++        if (alarm != null) {
++            alarmText = translations != null
++                    ? translations.getOrDefault("alarm" + capitalize(alarm), alarm) : alarm;
++        }
++        String eventText = translations != null
++                ? translations.getOrDefault("event" + capitalize(event.getType()), event.getType())
++                : event.getType();
++        String time = timezone != null && event.getEventTime() != null
++                ? DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(timezone.toZoneId())
++                        .format(event.getEventTime().toInstant())
++                : "";
++        String address = "";
++        String speed = "";
++        if (position != null) {
++            address = position.getAddress() != null
++                    ? position.getAddress() : position.getLatitude() + ", " + position.getLongitude();
++            speed = formatSpeed(position.getSpeed(), (String) context.get("speedUnit"));
++        }
++        String link = webUrl + "/event/" + event.getId();
++
++        Map<String, String> plain = Map.of(
++                "device", device != null ? String.valueOf(device.getName()) : "",
++                "time", time,
++                "address", address,
++                "speed", speed,
++                "geofence", geofence != null ? String.valueOf(geofence.getName()) : "",
++                "alarm", alarmText,
++                "event", eventText,
++                "link", link);
++
++        Map<String, String> html = new java.util.HashMap<>();
++        plain.forEach((key, value) -> html.put(key, escapeHtml(value)));
++        html.put("link", "<a href=\"" + escapeHtml(link) + "\">" + escapeHtml(link) + "</a>");
++
++        String subject = replace(custom.get("subject"), plain).replace("\n", " ");
++        String text = replace(custom.get("body"), plain);
++        String body = "<!DOCTYPE html><html><body>"
++                + replace(escapeHtml(custom.get("body")), html).replace("\n", "<br>")
++                + "<br><br><a href=\"" + webUrl + "/settings/notifications?token=" + context.get("token") + "\">"
++                + (translations != null ? translations.getOrDefault("sharedUnsubscribe", "Unsubscribe")
++                        : "Unsubscribe") + "</a></body></html>";
++        return new NotificationMessage(subject, text.replace("\n", " "), body, priority);
+     }
+ 
+     public NotificationMessage formatMessage(
+@@ -81,6 +168,12 @@ public class NotificationFormatter {
+         }
+ 
+         boolean priority = notification != null && notification.getBoolean("priority");
++        if (user != null && CustomTemplateStore.isValidName(event.getType())) {
++            Map<String, String> custom = customTemplateStore.get(user.getId(), event.getType());
++            if (custom != null && custom.get("subject") != null && custom.get("body") != null) {
++                return formatCustom(custom, velocityContext, device, event, position, priority);
++            }
++        }
+         return textTemplateFormatter.formatMessage(velocityContext, event.getType(), priority);
+     }
+ 
 diff --git a/src/main/java/org/traccar/protocol/Jt808Protocol.java b/src/main/java/org/traccar/protocol/Jt808Protocol.java
 index 4f375d9..a400d12 100644
 --- a/src/main/java/org/traccar/protocol/Jt808Protocol.java
@@ -1060,6 +1359,3 @@ index 0000000..542955c
 +    }
 +
 +}
--- 
-2.43.0
-

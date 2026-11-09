@@ -50,7 +50,13 @@ const SettingsMenu = () => {
               title={t('sharedNotifications')}
               link="/settings/notifications"
               icon={<NotificationsIcon />}
-              selected={location.pathname.startsWith('/settings/notification')}
+              selected={location.pathname === '/settings/notifications' || location.pathname.startsWith('/settings/notification/')}
+            />
+            <MenuItem
+              title={t('tplTitle')}
+              link="/settings/notification-texts"
+              icon={<NotificationsIcon />}
+              selected={location.pathname === '/settings/notification-texts'}
             />
             <MenuItem
               title={t('settingsUser')}
