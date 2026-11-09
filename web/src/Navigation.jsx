@@ -143,6 +143,7 @@ const Navigation = () => {
           <Route path="emulator" element={<EmulatorPage />} />
           <Route path="stream" element={<StreamPage />} />
           <Route path="builder" element={<ReportBuilderPage />} />
+          <Route path="dashboard" element={<ReportBuilderPage readOnly />} />
           <Route path="cameras" element={<CamerasDashboardPage />} />
           <Route path="cameras/recordings" element={<RecordingsPage />} />
           <Route path="cameras/speeding" element={<CamerasSpeedingPage />} />

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import {
@@ -34,6 +36,7 @@ import useBuilderData from './useBuilderData';
 import WidgetView, { KpiContent, typeIcon, widgetTitle } from './WidgetView';
 import WidgetDialog from './WidgetDialog';
 import { blueGradient, brand } from './style';
+import MainSidebar from '../main/MainSidebar';
 
 const useStyles = makeStyles()((theme) => ({
   page: {
@@ -150,15 +153,17 @@ const icon = (Component) => ({
   },
 });
 
-const ReportBuilderPage = () => {
+const ReportBuilderPage = ({ readOnly = false }) => {
   const { classes, cx } = useStyles();
   const t = useTranslation();
+  const theme = useTheme();
+  const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const fileRef = useRef(null);
 
   const groups = useSelector((state) => state.groups.items);
 
-  const [widgets, setWidgets] = useState(() => read('reportBuilderWidgets', defaultWidgets));
-  const [templates, setTemplates] = useState(() => read('reportBuilderTemplates', {}));
+  const [widgets, setWidgets] = useState(() => (readOnly ? defaultWidgets : read('reportBuilderWidgets', defaultWidgets)));
+  const [templates, setTemplates] = useState(() => (readOnly ? {} : read('reportBuilderTemplates', {})));
   const [filter, setFilter] = useState({
     from: dayjs().subtract(7, 'day').startOf('day').format('YYYY-MM-DDTHH:mm'),
     to: dayjs().endOf('day').format('YYYY-MM-DDTHH:mm'),
@@ -175,8 +180,8 @@ const ReportBuilderPage = () => {
   const [data, loading, load, info] = useBuilderData();
 
   useEffect(() => {
-    write('reportBuilderWidgets', widgets);
-  }, [widgets]);
+    if (!readOnly) write('reportBuilderWidgets', widgets);
+  }, [widgets, readOnly]);
 
   useEffect(() => {
     load(filter);
@@ -270,10 +275,15 @@ const ReportBuilderPage = () => {
     </>
   );
 
-  return (
-    <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'builderTitle']}>
+  const content = (
+    <>
       <div className={classes.page}>
         <div className={classes.container}>
+          {readOnly && (
+            <Typography variant="h5" fontWeight={700} color={brand.navy}>
+              {t('dashboardTitle')}
+            </Typography>
+          )}
           <div className={classes.toolbar}>
             <TextField
               className={classes.field}
@@ -329,7 +339,7 @@ const ReportBuilderPage = () => {
               {t('reportShow')}
             </Button>
             <Box sx={{ flexGrow: 1 }} />
-            {editing && (
+            {!readOnly && editing && (
               <>
                 <Button
                   className={classes.linkButton}
@@ -354,6 +364,8 @@ const ReportBuilderPage = () => {
                 </Button>
               </>
             )}
+            {!readOnly && (
+              <>
             <Button
               className={classes.linkButton}
               endIcon={<KeyboardArrowDownIcon />}
@@ -370,6 +382,8 @@ const ReportBuilderPage = () => {
             >
               {editing ? t('builderDone') : t('builderEdit')}
             </Button>
+              </>
+            )}
           </div>
           <Menu anchorEl={templateAnchor} open={Boolean(templateAnchor)} onClose={() => setTemplateAnchor(null)}>
             <MenuItem onClick={() => { setTemplateAnchor(null); saveTemplate(); }}>{t('builderTemplateSave')}</MenuItem>
@@ -435,9 +449,27 @@ const ReportBuilderPage = () => {
           </div>
         </div>
       </div>
-      {dialog && (
+      {!readOnly && dialog && (
         <WidgetDialog key={dialog.id} open widget={dialog} onClose={() => setDialog(null)} onSave={saveWidget} />
       )}
+    </>
+  );
+
+  if (readOnly && desktop) {
+    return (
+      <div style={{ height: '100%', display: 'flex' }}>
+        <MainSidebar />
+        <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{content}</div>
+      </div>
+    );
+  }
+
+  return (
+    <PageLayout
+      menu={<ReportsMenu />}
+      breadcrumbs={readOnly ? ['dashboardTitle'] : ['reportTitle', 'builderTitle']}
+    >
+      {content}
     </PageLayout>
   );
 };

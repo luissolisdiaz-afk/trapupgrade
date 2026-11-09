@@ -10,6 +10,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import PinDropIcon from '@mui/icons-material/PinDrop';
 import CreateIcon from '@mui/icons-material/Create';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -108,6 +109,13 @@ const MainSidebar = () => {
   const report = (path) => (selectedId != null ? `${path}?deviceId=${selectedId}` : path);
 
   const items = [
+    {
+      key: 'dashboard',
+      title: t('dashboardTitle'),
+      icon: <DashboardIcon />,
+      link: '/dashboard',
+      match: (p) => p.startsWith('/dashboard'),
+    },
     { key: 'map', title: t('mapTitle'), icon: <MapIcon />, link: '/', match: (p) => p === '/' },
     {
       key: 'reports',
