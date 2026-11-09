@@ -26,10 +26,9 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import BatteryAlertIcon from '@mui/icons-material/BatteryAlert';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AddIcon from '@mui/icons-material/Add';
 import RouteIcon from '@mui/icons-material/Route';
 import PlaceIcon from '@mui/icons-material/Place';
-import HourglassBottomIcon from '@mui/icons-material/HourglassBottom';
 import DescriptionIcon from '@mui/icons-material/Description';
 import HistoryIcon from '@mui/icons-material/History';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -299,7 +298,7 @@ const DashboardPage = () => {
             )}
           </Panel>
 
-          <Panel icon={<AddCircleOutlineIcon />} title={t('dashInstalls')}>
+          <Panel icon={<AddIcon />} title={t('dashInstalls')}>
             <List dense disablePadding>
               {stats.recent.map((device) => (
                 <ListItem key={device.id} disableGutters divider>
