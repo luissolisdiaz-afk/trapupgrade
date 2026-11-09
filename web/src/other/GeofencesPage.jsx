@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Divider, Typography, IconButton, Toolbar, Paper } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import { makeStyles } from 'tss-react/mui';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -15,6 +17,7 @@ import { messagesActions } from '../store';
 import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import MainSidebar from '../main/MainSidebar';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -50,6 +53,47 @@ const useStyles = makeStyles()((theme) => ({
   fileInput: {
     display: 'none',
   },
+  desktopRoot: {
+    height: '100%',
+    display: 'flex',
+    background: theme.palette.mode === 'dark' ? theme.palette.background.default : '#eef3fb',
+  },
+  desktopColumn: {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  desktopHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    height: 72,
+    padding: theme.spacing(0, 2),
+  },
+  desktopBody: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    gap: theme.spacing(1.5),
+    padding: theme.spacing(0, 2, 2, 0),
+  },
+  listPanel: {
+    width: theme.dimensions.drawerWidthDesktop,
+    flexShrink: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 1px 6px rgba(15, 33, 71, 0.12)',
+  },
+  mapArea: {
+    flex: 1,
+    minWidth: 0,
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 1px 6px rgba(15, 33, 71, 0.12)',
+  },
 }));
 
 const GeofencesPage = () => {
@@ -57,6 +101,8 @@ const GeofencesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();
+  const theme = useTheme();
+  const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const [selectedGeofenceId, setSelectedGeofenceId] = useState();
 
@@ -89,6 +135,56 @@ const GeofencesPage = () => {
     };
     reader.readAsText(file);
   };
+
+  const uploadButton = (
+    <label htmlFor="upload-gpx">
+      <input
+        accept=".gpx"
+        id="upload-gpx"
+        type="file"
+        className={classes.fileInput}
+        onChange={handleFile}
+      />
+      <IconButton edge="end" component="span" onClick={() => {}}>
+        <Tooltip title={t('sharedUpload')}>
+          <UploadFileIcon />
+        </Tooltip>
+      </IconButton>
+    </label>
+  );
+
+  const mapContent = (
+    <>
+      <MapView>
+        <MapGeofenceEdit selectedGeofenceId={selectedGeofenceId} />
+      </MapView>
+      <MapScale />
+      <MapCurrentLocation />
+      <MapGeocoder />
+    </>
+  );
+
+  if (desktop) {
+    return (
+      <div className={classes.desktopRoot}>
+        <MainSidebar />
+        <div className={classes.desktopColumn}>
+          <div className={classes.desktopHeader}>
+            <Typography variant="h5" fontWeight={700} className={classes.title}>
+              {t('sharedGeofences')}
+            </Typography>
+            {uploadButton}
+          </div>
+          <div className={classes.desktopBody}>
+            <Paper className={classes.listPanel}>
+              <GeofencesList onGeofenceSelected={setSelectedGeofenceId} />
+            </Paper>
+            <div className={classes.mapArea}>{mapContent}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={classes.root}>

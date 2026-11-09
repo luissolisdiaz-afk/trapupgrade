@@ -9,6 +9,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import PinDropIcon from '@mui/icons-material/PinDrop';
+import CreateIcon from '@mui/icons-material/Create';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
@@ -134,6 +135,13 @@ const MainSidebar = () => {
       icon: <PinDropIcon />,
       link: report('/reports/stops'),
       match: (p) => p.startsWith('/reports/stops'),
+    },
+    {
+      key: 'geofences',
+      title: t('sharedGeofences'),
+      icon: <CreateIcon />,
+      link: '/geofences',
+      match: (p) => p.startsWith('/geofences'),
     },
     {
       key: 'cameras',
