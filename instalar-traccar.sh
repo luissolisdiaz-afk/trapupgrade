@@ -5,7 +5,7 @@ set -euo pipefail
 PATCH="$(readlink -f "$1")"; WEBZIP="$(readlink -f "$2")"
 BASE=102fa46   # commit de Traccar sobre el que se hizo el parche
 sudo apt update
-sudo apt install -y openjdk-17-jdk git unzip ffmpeg nodejs npm
+sudo apt install -y openjdk-21-jdk git unzip ffmpeg nodejs npm
 WORK=$HOME/traccar-build; mkdir -p "$WORK"; cd "$WORK"
 [ -d traccar ] || git clone --recursive https://github.com/traccar/traccar.git
 cd traccar && git checkout -q $BASE && git submodule update --init --recursive
