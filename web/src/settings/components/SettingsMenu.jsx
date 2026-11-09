@@ -1,4 +1,7 @@
-import { Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Collapse, Divider, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import TuneIcon from '@mui/icons-material/Tune';
 import DrawIcon from '@mui/icons-material/Draw';
@@ -36,6 +39,13 @@ const SettingsMenu = () => {
 
   const features = useFeatures();
 
+  const inAlerts =
+    location.pathname.startsWith('/settings/notification');
+  const [alertsOpen, setAlertsOpen] = useState(inAlerts);
+  useEffect(() => {
+    if (inAlerts) setAlertsOpen(true);
+  }, [inAlerts]);
+
   return (
     <>
       <List>
@@ -47,29 +57,34 @@ const SettingsMenu = () => {
         />
         {!readonly && (
           <>
-            <ListItem>
+            <ListItemButton onClick={() => setAlertsOpen((open) => !open)} selected={inAlerts && !alertsOpen}>
               <ListItemIcon>
                 <NotificationsIcon />
               </ListItemIcon>
               <ListItemText primary={t('alertsManagement')} slotProps={{ primary: { fontWeight: 700 } }} />
-            </ListItem>
-            <MenuItem
-              nested
-              title={t('alertsRules')}
-              link="/settings/notifications"
-              icon={<SubdirectoryArrowRightIcon />}
-              selected={
-                location.pathname === '/settings/notifications' ||
-                location.pathname.startsWith('/settings/notification/')
-              }
-            />
-            <MenuItem
-              nested
-              title={t('alertsTemplates')}
-              link="/settings/notification-texts"
-              icon={<SubdirectoryArrowRightIcon />}
-              selected={location.pathname === '/settings/notification-texts'}
-            />
+              {alertsOpen ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={alertsOpen} timeout="auto" unmountOnExit>
+              <List disablePadding>
+                <MenuItem
+                  nested
+                  title={t('alertsRules')}
+                  link="/settings/notifications"
+                  icon={<SubdirectoryArrowRightIcon />}
+                  selected={
+                    location.pathname === '/settings/notifications' ||
+                    location.pathname.startsWith('/settings/notification/')
+                  }
+                />
+                <MenuItem
+                  nested
+                  title={t('alertsTemplates')}
+                  link="/settings/notification-texts"
+                  icon={<SubdirectoryArrowRightIcon />}
+                  selected={location.pathname === '/settings/notification-texts'}
+                />
+              </List>
+            </Collapse>
             <MenuItem
               title={t('settingsUser')}
               link={`/settings/user/${userId}`}
