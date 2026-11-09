@@ -89,13 +89,13 @@ const TemplateEditor = ({ type, custom, onChanged }) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject, body }),
     });
-    dispatch(messagesActions.push(t('tplSaved')));
+    dispatch(messagesActions.push({ message: t('tplSaved'), severity: 'info' }));
     onChanged();
   });
 
   const restore = useCatch(async () => {
     await fetchOrThrow(`api/notificationtemplates/${type}`, { method: 'DELETE' });
-    dispatch(messagesActions.push(t('tplRestored')));
+    dispatch(messagesActions.push({ message: t('tplRestored'), severity: 'info' }));
     onChanged();
   });
 
@@ -175,7 +175,7 @@ const NotificationTemplatesPage = () => {
   }, [version]);
 
   return (
-    <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'tplTitle']}>
+    <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'alertsManagement', 'alertsTemplates']}>
       <Container maxWidth="md" sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Alert severity="info">{t('tplHint')}</Alert>
         {TYPES.map((type) => (

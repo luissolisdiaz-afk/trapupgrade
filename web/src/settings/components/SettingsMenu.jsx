@@ -1,4 +1,5 @@
-import { Divider, List } from '@mui/material';
+import { Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import TuneIcon from '@mui/icons-material/Tune';
 import DrawIcon from '@mui/icons-material/Draw';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -46,16 +47,27 @@ const SettingsMenu = () => {
         />
         {!readonly && (
           <>
+            <ListItem>
+              <ListItemIcon>
+                <NotificationsIcon />
+              </ListItemIcon>
+              <ListItemText primary={t('alertsManagement')} slotProps={{ primary: { fontWeight: 700 } }} />
+            </ListItem>
             <MenuItem
-              title={t('sharedNotifications')}
+              nested
+              title={t('alertsRules')}
               link="/settings/notifications"
-              icon={<NotificationsIcon />}
-              selected={location.pathname === '/settings/notifications' || location.pathname.startsWith('/settings/notification/')}
+              icon={<SubdirectoryArrowRightIcon />}
+              selected={
+                location.pathname === '/settings/notifications' ||
+                location.pathname.startsWith('/settings/notification/')
+              }
             />
             <MenuItem
-              title={t('tplTitle')}
+              nested
+              title={t('alertsTemplates')}
               link="/settings/notification-texts"
-              icon={<NotificationsIcon />}
+              icon={<SubdirectoryArrowRightIcon />}
               selected={location.pathname === '/settings/notification-texts'}
             />
             <MenuItem
