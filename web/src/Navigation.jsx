@@ -45,6 +45,7 @@ const StatisticsPage = lazy(() => import('./reports/StatisticsPage'));
 const LoginPage = lazy(() => import('./login/LoginPage'));
 const RegisterPage = lazy(() => import('./login/RegisterPage'));
 const ResetPasswordPage = lazy(() => import('./login/ResetPasswordPage'));
+const DashboardPage = lazy(() => import('./dashboard/DashboardPage'));
 const GeofencesPage = lazy(() => import('./other/GeofencesPage'));
 const GeofencePage = lazy(() => import('./settings/GeofencePage'));
 const EventPage = lazy(() => import('./other/EventPage'));
@@ -143,7 +144,7 @@ const Navigation = () => {
           <Route path="emulator" element={<EmulatorPage />} />
           <Route path="stream" element={<StreamPage />} />
           <Route path="builder" element={<ReportBuilderPage />} />
-          <Route path="dashboard" element={<ReportBuilderPage readOnly />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="cameras" element={<CamerasDashboardPage />} />
           <Route path="cameras/recordings" element={<RecordingsPage />} />
           <Route path="cameras/speeding" element={<CamerasSpeedingPage />} />

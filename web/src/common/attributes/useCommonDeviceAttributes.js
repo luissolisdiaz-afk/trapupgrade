@@ -8,6 +8,10 @@ export default (t) =>
         type: 'number',
         dataType: 'speed',
       },
+      workshop: {
+        name: t('attributeWorkshop'),
+        type: 'boolean',
+      },
       speedLimitMode: {
         name: t('attributeSpeedLimitMode'),
         type: 'string',
