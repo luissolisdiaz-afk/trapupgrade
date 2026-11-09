@@ -24,6 +24,7 @@ import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import MapOverlay from '../map/overlay/MapOverlay';
+import { brand, blueGradient } from '../builder/style';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -190,7 +191,15 @@ const ReplayPage = () => {
       <MapScale />
       <MapCamera positions={positions} />
       <div className={classes.sidebar}>
-        <Paper elevation={3} square>
+        <Paper
+          elevation={3}
+          sx={{
+            borderRadius: '16px 16px 0 0',
+            background: brand.navyHeader,
+            color: '#fff',
+            '& .MuiIconButton-root': { color: '#fff' },
+          }}
+        >
           <Toolbar>
             <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
               <BackIcon />
@@ -210,14 +219,19 @@ const ReplayPage = () => {
             )}
           </Toolbar>
         </Paper>
-        <Paper className={classes.content} square>
+        <Paper className={classes.content} sx={{ borderRadius: '0 0 16px 16px' }} square>
           {loaded && !filterOpen && (
             <>
-              <Typography variant="subtitle1" align="center">
+              <Typography variant="subtitle1" align="center" fontWeight={700} color={brand.navy}>
                 {deviceName}
               </Typography>
               <Slider
                 className={classes.slider}
+                sx={{
+                  color: brand.blue,
+                  '& .MuiSlider-mark': { backgroundColor: brand.blueSoft, opacity: 0.8 },
+                  '& .MuiSlider-thumb': { boxShadow: '0 0 0 4px rgba(11, 95, 232, 0.2)' },
+                }}
                 max={positions.length - 1}
                 step={null}
                 marks={positions.map((_, index) => ({ value: index }))}
@@ -235,6 +249,12 @@ const ReplayPage = () => {
                 <IconButton
                   onClick={() => setPlaying(!playing)}
                   disabled={index >= positions.length - 1}
+                  sx={{
+                    background: blueGradient,
+                    color: '#fff',
+                    '&:hover': { background: brand.blueDark },
+                    '&.Mui-disabled': { background: 'action.disabledBackground' },
+                  }}
                 >
                   {playing ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>

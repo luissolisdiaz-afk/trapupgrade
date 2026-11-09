@@ -24,11 +24,12 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import GroupsIcon from '@mui/icons-material/Groups';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import SpeedIcon from '@mui/icons-material/Speed';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PageLayout from '../common/components/PageLayout';
 import ReportsMenu from '../reports/components/ReportsMenu';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import { defaultWidgets } from './aggregate';
+import { defaultWidgets, SOURCES } from './aggregate';
 import useBuilderData from './useBuilderData';
 import WidgetView, { KpiContent, typeIcon, widgetTitle } from './WidgetView';
 import WidgetDialog from './WidgetDialog';
@@ -168,6 +169,7 @@ const ReportBuilderPage = () => {
   const [dialog, setDialog] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [templateAnchor, setTemplateAnchor] = useState(null);
+  const [kpiAnchor, setKpiAnchor] = useState(null);
   const [error, setError] = useState(null);
 
   const [data, loading, load, info] = useBuilderData();
@@ -233,6 +235,14 @@ const ReportBuilderPage = () => {
   const apply = () => {
     setError(null);
     load(filter);
+  };
+
+  const addKpi = (source, metric) => {
+    setWidgets((list) => [
+      ...list,
+      { id: `k${Date.now()}`, type: 'kpi', title: '', source, metric, groupBy: 'none', span: 1 },
+    ]);
+    setKpiAnchor(null);
   };
 
   const newWidget = () => ({
@@ -320,9 +330,29 @@ const ReportBuilderPage = () => {
             </Button>
             <Box sx={{ flexGrow: 1 }} />
             {editing && (
-              <Button className={classes.linkButton} startIcon={<AddIcon />} onClick={() => setDialog(newWidget())}>
-                {t('builderAddWidget')}
-              </Button>
+              <>
+                <Button
+                  className={classes.linkButton}
+                  startIcon={<SpeedIcon />}
+                  endIcon={<KeyboardArrowDownIcon />}
+                  onClick={(e) => setKpiAnchor(e.currentTarget)}
+                >
+                  {t('builderAddKpi')}
+                </Button>
+                <Menu anchorEl={kpiAnchor} open={Boolean(kpiAnchor)} onClose={() => setKpiAnchor(null)}>
+                  {Object.entries(SOURCES).flatMap(([source, def]) =>
+                    Object.entries(def.metrics).map(([metric, m]) => (
+                      <MenuItem key={`${source}.${metric}`} onClick={() => addKpi(source, metric)}>
+                        {t(`builderSource_${source}`)} · {t(m.label)}
+                        {m.unit ? ` (${m.unit})` : ''}
+                      </MenuItem>
+                    )),
+                  )}
+                </Menu>
+                <Button className={classes.linkButton} startIcon={<AddIcon />} onClick={() => setDialog(newWidget())}>
+                  {t('builderAddWidget')}
+                </Button>
+              </>
             )}
             <Button
               className={classes.linkButton}

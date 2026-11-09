@@ -10,6 +10,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import PinDropIcon from '@mui/icons-material/PinDrop';
 import CreateIcon from '@mui/icons-material/Create';
+import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
@@ -113,7 +114,14 @@ const MainSidebar = () => {
       title: t('reportTitle'),
       icon: <BarChartIcon />,
       link: report('/reports/combined'),
-      match: (p) => p.startsWith('/reports/combined') || p.startsWith('/builder'),
+      match: (p) => p.startsWith('/reports/combined'),
+    },
+    {
+      key: 'builder',
+      title: t('builderTitle'),
+      icon: <DashboardCustomizeIcon />,
+      link: '/builder',
+      match: (p) => p.startsWith('/builder'),
     },
     {
       key: 'events',
