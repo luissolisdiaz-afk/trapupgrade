@@ -129,12 +129,14 @@ const SettingsMenu = () => {
       </List>
       <Divider />
       <List>
-        <MenuItem
-          title={t('settingsProtocols')}
-          link="/settings/protocols"
-          icon={<RouterIcon />}
-          selected={location.pathname === '/settings/protocols'}
-        />
+        {admin && (
+          <MenuItem
+            title={t('settingsProtocols')}
+            link="/settings/protocols"
+            icon={<RouterIcon />}
+            selected={location.pathname === '/settings/protocols'}
+          />
+        )}
         {manager && (
           <>
             <MenuItem
