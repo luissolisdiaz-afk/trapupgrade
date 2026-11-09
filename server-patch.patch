@@ -1,0 +1,1065 @@
+From ed7193d3a97f6431171904222939d1e01633d310 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 23:36:13 -0300
+Subject: [PATCH] Add device recordings API and per-device speed limit source
+
+- JT/T 1078 recording list query/playback (0x9205/0x1205, 0x9201/0x9202)
+  with RecordingResource REST endpoints under api/recordings
+- speedLimitMode (fixed/map/lowest) and speedLimitMultiplier per device/group
+- Cache for map speed limit lookups (speedLimit.cacheTtl)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01ShZ5eXfUPvoKxatq2qnXWj
+---
+ src/main/java/org/traccar/MainModule.java     |  10 +-
+ .../api/resource/RecordingResource.java       | 140 ++++++++++++++++++
+ src/main/java/org/traccar/config/Keys.java    |  25 ++++
+ .../traccar/handler/SpeedLimitHandler.java    |  14 +-
+ .../handler/events/OverspeedEventHandler.java |  13 +-
+ .../java/org/traccar/media/Recording.java     |  24 +++
+ .../org/traccar/media/RecordingManager.java   |  58 ++++++++
+ .../org/traccar/media/RecordingParser.java    |  74 +++++++++
+ src/main/java/org/traccar/model/Command.java  |   5 +
+ .../org/traccar/protocol/Jt808Protocol.java   |   5 +-
+ .../protocol/Jt808ProtocolDecoder.java        |  65 ++++++++
+ .../protocol/Jt808ProtocolEncoder.java        |  46 ++++++
+ .../session/state/OverspeedProcessor.java     |  16 ++
+ .../speedlimit/CachingSpeedLimitProvider.java |  92 ++++++++++++
+ .../events/OverspeedEventHandlerTest.java     |  11 ++
+ .../traccar/media/RecordingParserTest.java    |  75 ++++++++++
+ .../CachingSpeedLimitProviderTest.java        |  81 ++++++++++
+ 17 files changed, 744 insertions(+), 10 deletions(-)
+ create mode 100644 src/main/java/org/traccar/api/resource/RecordingResource.java
+ create mode 100644 src/main/java/org/traccar/media/Recording.java
+ create mode 100644 src/main/java/org/traccar/media/RecordingManager.java
+ create mode 100644 src/main/java/org/traccar/media/RecordingParser.java
+ create mode 100644 src/main/java/org/traccar/speedlimit/CachingSpeedLimitProvider.java
+ create mode 100644 src/test/java/org/traccar/media/RecordingParserTest.java
+ create mode 100644 src/test/java/org/traccar/speedlimit/CachingSpeedLimitProviderTest.java
+
+diff --git a/src/main/java/org/traccar/MainModule.java b/src/main/java/org/traccar/MainModule.java
+index 524430e..6eccebb 100644
+--- a/src/main/java/org/traccar/MainModule.java
++++ b/src/main/java/org/traccar/MainModule.java
+@@ -101,6 +101,7 @@ import org.traccar.session.cache.CacheManager;
+ import org.traccar.sms.HttpSmsClient;
+ import org.traccar.sms.SmsManager;
+ import org.traccar.sms.SnsSmsClient;
++import org.traccar.speedlimit.CachingSpeedLimitProvider;
+ import org.traccar.speedlimit.OverpassSpeedLimitProvider;
+ import org.traccar.speedlimit.SpeedLimitProvider;
+ import org.traccar.storage.DatabaseStorage;
+@@ -291,10 +292,12 @@ public class MainModule extends AbstractModule {
+         if (config.getBoolean(Keys.SPEED_LIMIT_ENABLE)) {
+             String type = config.getString(Keys.SPEED_LIMIT_TYPE, "overpass");
+             String url = config.getString(Keys.SPEED_LIMIT_URL);
+-            return switch (type) {
++            SpeedLimitProvider provider = switch (type) {
+                 case "overpass" -> new OverpassSpeedLimitProvider(config, client, url);
+                 default -> throw new IllegalArgumentException("Unknown speed limit provider");
+             };
++            int cacheTtl = config.getInteger(Keys.SPEED_LIMIT_CACHE_TTL);
++            return cacheTtl > 0 ? new CachingSpeedLimitProvider(provider, cacheTtl * 1000L) : provider;
+         }
+         return null;
+     }
+@@ -346,9 +349,10 @@ public class MainModule extends AbstractModule {
+ 
+     @Singleton
+     @Provides
+-    public static SpeedLimitHandler provideSpeedLimitHandler(@Nullable SpeedLimitProvider speedLimitProvider) {
++    public static SpeedLimitHandler provideSpeedLimitHandler(
++            @Nullable SpeedLimitProvider speedLimitProvider, CacheManager cacheManager) {
+         if (speedLimitProvider != null) {
+-            return new SpeedLimitHandler(speedLimitProvider);
++            return new SpeedLimitHandler(speedLimitProvider, cacheManager);
+         }
+         return null;
+     }
+diff --git a/src/main/java/org/traccar/api/resource/RecordingResource.java b/src/main/java/org/traccar/api/resource/RecordingResource.java
+new file mode 100644
+index 0000000..5e24ed3
+--- /dev/null
++++ b/src/main/java/org/traccar/api/resource/RecordingResource.java
+@@ -0,0 +1,140 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.api.resource;
++
++import jakarta.inject.Inject;
++import jakarta.ws.rs.DELETE;
++import jakarta.ws.rs.GET;
++import jakarta.ws.rs.POST;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.Produces;
++import jakarta.ws.rs.QueryParam;
++import jakarta.ws.rs.WebApplicationException;
++import jakarta.ws.rs.core.MediaType;
++import jakarta.ws.rs.core.Response;
++import org.traccar.api.BaseResource;
++import org.traccar.database.CommandsManager;
++import org.traccar.media.Recording;
++import org.traccar.media.RecordingManager;
++import org.traccar.model.Command;
++import org.traccar.model.Device;
++import org.traccar.storage.StorageException;
++
++import java.time.Duration;
++import java.util.Collection;
++import java.util.Date;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ExecutionException;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.TimeoutException;
++
++/**
++ * Recordings stored on a device (for example on a camera memory card). The list is requested from the device on
++ * demand. Playback makes the device stream the selected range to the server, where it is exposed as HLS the same way
++ * as live video: stream/{deviceId}/{channel}/live.m3u8.
++ */
++@Path("recordings")
++@Produces(MediaType.APPLICATION_JSON)
++public class RecordingResource extends BaseResource {
++
++    private static final Duration MAX_RANGE = Duration.ofDays(7);
++    private static final long TIMEOUT_SECONDS = 15;
++
++    @Inject
++    private CommandsManager commandsManager;
++
++    @Inject
++    private RecordingManager recordingManager;
++
++    private Command createCommand(
++            String type, long deviceId, int channel, Date from, Date to) throws StorageException {
++        permissionsService.checkPermission(Device.class, getUserId(), deviceId);
++        if (channel < 1 || channel > 255) {
++            throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
++                    .entity("Invalid channel").build());
++        }
++        Command command = new Command();
++        command.setDeviceId(deviceId);
++        command.setType(type);
++        command.set(Command.KEY_INDEX, channel);
++        command.set(Command.KEY_NO_QUEUE, true);
++        if (from != null && to != null) {
++            if (!from.before(to) || Duration.between(from.toInstant(), to.toInstant()).compareTo(MAX_RANGE) > 0) {
++                throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
++                        .entity("Invalid time range").build());
++            }
++            command.set(Command.KEY_START_TIME, from.toInstant().toString());
++            command.set(Command.KEY_END_TIME, to.toInstant().toString());
++        }
++        return command;
++    }
++
++    private void send(Command command) {
++        try {
++            commandsManager.sendCommand(command);
++        } catch (Exception e) {
++            throw new WebApplicationException(Response.status(Response.Status.CONFLICT)
++                    .entity("Device is not connected or does not support recordings").build());
++        }
++    }
++
++    @GET
++    public Collection<Recording> get(
++            @QueryParam("deviceId") long deviceId,
++            @QueryParam("channel") int channel,
++            @QueryParam("from") Date from,
++            @QueryParam("to") Date to) throws StorageException {
++
++        Command command = createCommand(Command.TYPE_VIDEO_QUERY, deviceId, channel, from, to);
++        CompletableFuture<List<Recording>> future = recordingManager.register(deviceId);
++        try {
++            send(command);
++            List<Recording> result = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
++            return result.stream().filter(recording -> recording.channel() == channel).toList();
++        } catch (TimeoutException e) {
++            throw new WebApplicationException(Response.status(Response.Status.GATEWAY_TIMEOUT)
++                    .entity("Device did not respond").build());
++        } catch (InterruptedException | ExecutionException e) {
++            throw new WebApplicationException(Response.status(Response.Status.INTERNAL_SERVER_ERROR).build());
++        } finally {
++            recordingManager.cancel(deviceId, future);
++        }
++    }
++
++    @POST
++    @Path("playback")
++    public Response playback(
++            @QueryParam("deviceId") long deviceId,
++            @QueryParam("channel") int channel,
++            @QueryParam("from") Date from,
++            @QueryParam("to") Date to) throws StorageException {
++
++        send(createCommand(Command.TYPE_VIDEO_PLAYBACK, deviceId, channel, from, to));
++        return Response.noContent().build();
++    }
++
++    @DELETE
++    @Path("playback")
++    public Response stop(
++            @QueryParam("deviceId") long deviceId,
++            @QueryParam("channel") int channel) throws StorageException {
++
++        send(createCommand(Command.TYPE_VIDEO_PLAYBACK_STOP, deviceId, channel, null, null));
++        return Response.noContent().build();
++    }
++
++}
+diff --git a/src/main/java/org/traccar/config/Keys.java b/src/main/java/org/traccar/config/Keys.java
+index 6aaa944..6d80c3c 100644
+--- a/src/main/java/org/traccar/config/Keys.java
++++ b/src/main/java/org/traccar/config/Keys.java
+@@ -427,6 +427,23 @@ public final class Keys {
+             List.of(KeyType.SERVER, KeyType.DEVICE),
+             0.0);
+ 
++    /**
++     * Source of the speed limit used for overspeed events. Supported values: fixed (only the configured speed limit),
++     * map (only the limit from the map provider when available, otherwise the fixed one), lowest (the lower of the
++     * fixed and map limits). Default behavior is the same as map.
++     */
++    public static final ConfigKey<String> EVENT_OVERSPEED_MODE = new StringConfigKey(
++            "speedLimitMode",
++            List.of(KeyType.SERVER, KeyType.DEVICE));
++
++    /**
++     * Per device or group override of the speed limit threshold multiplier. 0 means use the global multiplier.
++     */
++    public static final ConfigKey<Double> EVENT_OVERSPEED_DEVICE_MULTIPLIER = new DoubleConfigKey(
++            "speedLimitMultiplier",
++            List.of(KeyType.SERVER, KeyType.DEVICE),
++            0.0);
++
+     /**
+      * Distance in meters at which a linked device entering this range triggers a proximity enter event. 0 to disable.
+      */
+@@ -2157,6 +2174,14 @@ public final class Keys {
+             List.of(KeyType.CONFIG),
+             100);
+ 
++    /**
++     * Time in seconds to cache speed limit lookup results. Set to 0 to disable caching. Default value is 3600.
++     */
++    public static final ConfigKey<Integer> SPEED_LIMIT_CACHE_TTL = new IntegerConfigKey(
++            "speedLimit.cacheTtl",
++            List.of(KeyType.CONFIG),
++            3600);
++
+     /**
+      * Override latitude sign / hemisphere. Useful in cases where value is incorrect because of device bug. Value can be
+      * N for North or S for South.
+diff --git a/src/main/java/org/traccar/handler/SpeedLimitHandler.java b/src/main/java/org/traccar/handler/SpeedLimitHandler.java
+index adda6ac..2f4f7b8 100644
+--- a/src/main/java/org/traccar/handler/SpeedLimitHandler.java
++++ b/src/main/java/org/traccar/handler/SpeedLimitHandler.java
+@@ -17,7 +17,11 @@ package org.traccar.handler;
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
++import org.traccar.config.Keys;
++import org.traccar.helper.model.AttributeUtil;
+ import org.traccar.model.Position;
++import org.traccar.session.cache.CacheManager;
++import org.traccar.session.state.OverspeedProcessor;
+ import org.traccar.speedlimit.SpeedLimitProvider;
+ 
+ import jakarta.inject.Inject;
+@@ -27,15 +31,23 @@ public class SpeedLimitHandler extends BasePositionHandler {
+     private static final Logger LOGGER = LoggerFactory.getLogger(SpeedLimitHandler.class);
+ 
+     private final SpeedLimitProvider speedLimitProvider;
++    private final CacheManager cacheManager;
+ 
+     @Inject
+-    public SpeedLimitHandler(SpeedLimitProvider speedLimitProvider) {
++    public SpeedLimitHandler(SpeedLimitProvider speedLimitProvider, CacheManager cacheManager) {
+         this.speedLimitProvider = speedLimitProvider;
++        this.cacheManager = cacheManager;
+     }
+ 
+     @Override
+     public void onPosition(Position position, Callback callback) {
+ 
++        String mode = AttributeUtil.lookup(cacheManager, Keys.EVENT_OVERSPEED_MODE, position.getDeviceId());
++        if (OverspeedProcessor.MODE_FIXED.equals(mode)) {
++            callback.processed(false);
++            return;
++        }
++
+         speedLimitProvider.getSpeedLimit(position.getLatitude(), position.getLongitude(),
+                 new SpeedLimitProvider.SpeedLimitProviderCallback() {
+                     @Override
+diff --git a/src/main/java/org/traccar/handler/events/OverspeedEventHandler.java b/src/main/java/org/traccar/handler/events/OverspeedEventHandler.java
+index 48c413b..4f4fb24 100644
+--- a/src/main/java/org/traccar/handler/events/OverspeedEventHandler.java
++++ b/src/main/java/org/traccar/handler/events/OverspeedEventHandler.java
+@@ -65,10 +65,12 @@ public class OverspeedEventHandler extends BasePositionEventHandler {
+ 
+         double speedLimit = AttributeUtil.lookup(cacheManager, Keys.EVENT_OVERSPEED_LIMIT, deviceId);
+ 
+-        double positionSpeedLimit = position.getDouble(Position.KEY_SPEED_LIMIT);
+-        if (positionSpeedLimit > 0) {
+-            speedLimit = positionSpeedLimit;
+-        }
++        String mode = AttributeUtil.lookup(cacheManager, Keys.EVENT_OVERSPEED_MODE, deviceId);
++        speedLimit = OverspeedProcessor.resolveSpeedLimit(
++                speedLimit, position.getDouble(Position.KEY_SPEED_LIMIT), mode);
++
++        double deviceMultiplier = AttributeUtil.lookup(cacheManager, Keys.EVENT_OVERSPEED_DEVICE_MULTIPLIER, deviceId);
++        double effectiveMultiplier = deviceMultiplier > 0 ? deviceMultiplier : multiplier;
+ 
+         double geofenceSpeedLimit = 0;
+         long overspeedGeofenceId = 0;
+@@ -92,7 +94,8 @@ public class OverspeedEventHandler extends BasePositionEventHandler {
+         }
+ 
+         OverspeedState state = OverspeedState.fromDevice(device);
+-        OverspeedProcessor.updateState(state, position, speedLimit, multiplier, minimalDuration, overspeedGeofenceId);
++        OverspeedProcessor.updateState(
++                state, position, speedLimit, effectiveMultiplier, minimalDuration, overspeedGeofenceId);
+         if (state.isChanged()) {
+             state.toDevice(device);
+             try {
+diff --git a/src/main/java/org/traccar/media/Recording.java b/src/main/java/org/traccar/media/Recording.java
+new file mode 100644
+index 0000000..decdc82
+--- /dev/null
++++ b/src/main/java/org/traccar/media/Recording.java
+@@ -0,0 +1,24 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.media;
++
++import java.util.Date;
++
++/**
++ * Video recording stored on a device (for example on its memory card).
++ */
++public record Recording(int channel, Date startTime, Date endTime, long size, int mediaType) {
++}
+diff --git a/src/main/java/org/traccar/media/RecordingManager.java b/src/main/java/org/traccar/media/RecordingManager.java
+new file mode 100644
+index 0000000..67eef0d
+--- /dev/null
++++ b/src/main/java/org/traccar/media/RecordingManager.java
+@@ -0,0 +1,58 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.media;
++
++import jakarta.inject.Inject;
++import jakarta.inject.Singleton;
++
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ConcurrentHashMap;
++
++/**
++ * Correlates recording list requests sent to devices with the asynchronous responses they send back.
++ */
++@Singleton
++public class RecordingManager {
++
++    private final Map<Long, CompletableFuture<List<Recording>>> pending = new ConcurrentHashMap<>();
++
++    @Inject
++    public RecordingManager() {
++    }
++
++    public CompletableFuture<List<Recording>> register(long deviceId) {
++        CompletableFuture<List<Recording>> future = new CompletableFuture<>();
++        CompletableFuture<List<Recording>> previous = pending.put(deviceId, future);
++        if (previous != null) {
++            previous.complete(List.of());
++        }
++        return future;
++    }
++
++    public void cancel(long deviceId, CompletableFuture<List<Recording>> future) {
++        pending.remove(deviceId, future);
++    }
++
++    public void complete(long deviceId, List<Recording> recordings) {
++        CompletableFuture<List<Recording>> future = pending.remove(deviceId);
++        if (future != null) {
++            future.complete(recordings);
++        }
++    }
++
++}
+diff --git a/src/main/java/org/traccar/media/RecordingParser.java b/src/main/java/org/traccar/media/RecordingParser.java
+new file mode 100644
+index 0000000..db4833d
+--- /dev/null
++++ b/src/main/java/org/traccar/media/RecordingParser.java
+@@ -0,0 +1,74 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.media;
++
++import io.netty.buffer.ByteBuf;
++import org.traccar.helper.BcdUtil;
++import org.traccar.helper.DateBuilder;
++
++import java.util.ArrayList;
++import java.util.Date;
++import java.util.List;
++import java.util.TimeZone;
++
++/**
++ * Parser for the JT/T 1078 resource list (message 0x1205 body).
++ */
++public final class RecordingParser {
++
++    public static final int ITEM_LENGTH = 28;
++
++    private RecordingParser() {
++    }
++
++    private static Date readDate(ByteBuf buf, TimeZone timeZone) {
++        return new DateBuilder(timeZone)
++                .setYear(BcdUtil.readInteger(buf, 2))
++                .setMonth(BcdUtil.readInteger(buf, 2))
++                .setDay(BcdUtil.readInteger(buf, 2))
++                .setHour(BcdUtil.readInteger(buf, 2))
++                .setMinute(BcdUtil.readInteger(buf, 2))
++                .setSecond(BcdUtil.readInteger(buf, 2))
++                .getDate();
++    }
++
++    /**
++     * Parses the body: response serial number (2), item count (4), then items of 28 bytes each: channel (1),
++     * start time (6 BCD), end time (6 BCD), alarm flags (8), media type (1), stream type (1), storage type (1),
++     * size (4). Truncated trailing items are ignored.
++     */
++    public static List<Recording> parse(ByteBuf buf, TimeZone timeZone) {
++        List<Recording> result = new ArrayList<>();
++        if (buf.readableBytes() < 6) {
++            return result;
++        }
++        buf.readUnsignedShort(); // response serial number
++        long count = buf.readUnsignedInt();
++        while (result.size() < count && buf.readableBytes() >= ITEM_LENGTH) {
++            int channel = buf.readUnsignedByte();
++            Date start = readDate(buf, timeZone);
++            Date end = readDate(buf, timeZone);
++            buf.skipBytes(8); // alarm flags
++            int mediaType = buf.readUnsignedByte();
++            buf.readUnsignedByte(); // stream type
++            buf.readUnsignedByte(); // storage type
++            long size = buf.readUnsignedInt();
++            result.add(new Recording(channel, start, end, size, mediaType));
++        }
++        return result;
++    }
++
++}
+diff --git a/src/main/java/org/traccar/model/Command.java b/src/main/java/org/traccar/model/Command.java
+index 7b57888..c034db2 100644
+--- a/src/main/java/org/traccar/model/Command.java
++++ b/src/main/java/org/traccar/model/Command.java
+@@ -61,6 +61,9 @@ public class Command extends BaseCommand {
+     public static final String TYPE_MODE_DEEP_SLEEP = "modeDeepSleep";
+     public static final String TYPE_VIDEO_START = "videoStart";
+     public static final String TYPE_VIDEO_STOP = "videoStop";
++    public static final String TYPE_VIDEO_QUERY = "videoQuery";
++    public static final String TYPE_VIDEO_PLAYBACK = "videoPlayback";
++    public static final String TYPE_VIDEO_PLAYBACK_STOP = "videoPlaybackStop";
+ 
+     public static final String TYPE_ALARM_GEOFENCE = "alarmGeofence";
+     public static final String TYPE_ALARM_BATTERY = "alarmBattery";
+@@ -86,6 +89,8 @@ public class Command extends BaseCommand {
+     public static final String KEY_SERVER = "server";
+     public static final String KEY_PORT = "port";
+     public static final String KEY_NO_QUEUE = "noQueue";
++    public static final String KEY_START_TIME = "startTime";
++    public static final String KEY_END_TIME = "endTime";
+ 
+     @QueryIgnore
+     @Override
+diff --git a/src/main/java/org/traccar/protocol/Jt808Protocol.java b/src/main/java/org/traccar/protocol/Jt808Protocol.java
+index 4f375d9..a400d12 100644
+--- a/src/main/java/org/traccar/protocol/Jt808Protocol.java
++++ b/src/main/java/org/traccar/protocol/Jt808Protocol.java
+@@ -48,7 +48,10 @@ public class Jt808Protocol extends BaseProtocol {
+                 Command.TYPE_SET_SPEED_LIMIT,
+                 Command.TYPE_OUTPUT_CONTROL,
+                 Command.TYPE_VIDEO_START,
+-                Command.TYPE_VIDEO_STOP);
++                Command.TYPE_VIDEO_STOP,
++                Command.TYPE_VIDEO_QUERY,
++                Command.TYPE_VIDEO_PLAYBACK,
++                Command.TYPE_VIDEO_PLAYBACK_STOP);
+         addServer(new TrackerServer(config, getName(), false) {
+             @Override
+             protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
+diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
+index d739c04..fffb006 100644
+--- a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
++++ b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
+@@ -17,8 +17,11 @@ package org.traccar.protocol;
+ 
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.ByteBufUtil;
++import io.netty.buffer.CompositeByteBuf;
+ import io.netty.buffer.Unpooled;
+ import io.netty.channel.Channel;
++import io.netty.channel.ChannelHandlerContext;
++import jakarta.inject.Inject;
+ import org.traccar.BaseProtocol;
+ import org.traccar.BaseProtocolDecoder;
+ import org.traccar.NetworkMessage;
+@@ -33,6 +36,8 @@ import org.traccar.helper.DataConverter;
+ import org.traccar.helper.DateBuilder;
+ import org.traccar.helper.StringUtil;
+ import org.traccar.helper.UnitsConverter;
++import org.traccar.media.RecordingManager;
++import org.traccar.media.RecordingParser;
+ import org.traccar.model.CellTower;
+ import org.traccar.model.Network;
+ import org.traccar.model.Position;
+@@ -95,6 +100,10 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+     public static final int MSG_DRIVER_IDENTITY = 0x0702;
+     public static final int MSG_VIDEO_REQUEST = 0x9101;
+     public static final int MSG_VIDEO_CONTROL = 0x9102;
++    public static final int MSG_VIDEO_PLAYBACK = 0x9201;
++    public static final int MSG_VIDEO_PLAYBACK_CONTROL = 0x9202;
++    public static final int MSG_VIDEO_QUERY = 0x9205;
++    public static final int MSG_VIDEO_QUERY_RESPONSE = 0x1205;
+     public static final int MSG_PARAMETER_QUERY_RESPONSE = 0x0104;
+     public static final int MSG_PARAMETER_QUERY_ALL = 0x8104;
+     public static final int MSG_LOCATION_QUERY = 0x8201;
+@@ -112,6 +121,47 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+     private int delimiter = 0x7e;
+     private Integer protocolVersion;
+ 
++    private RecordingManager recordingManager;
++    private CompositeByteBuf recordingBuffer;
++
++    @Inject
++    public void setRecordingManager(RecordingManager recordingManager) {
++        this.recordingManager = recordingManager;
++    }
++
++    public TimeZone getDeviceTimeZone(long deviceId) {
++        return getTimeZone(deviceId, "GMT+8");
++    }
++
++    private void decodeRecordings(ByteBuf buf, int attribute, int bodyLength, long deviceId) {
++        int total = 1;
++        int sequence = 1;
++        if (BitUtil.check(attribute, 13)) {
++            total = buf.readUnsignedShort();
++            sequence = buf.readUnsignedShort();
++        }
++        if (sequence == 1 && recordingBuffer != null) {
++            recordingBuffer.release();
++            recordingBuffer = null;
++        }
++        if (recordingBuffer == null) {
++            if (sequence != 1) {
++                return; // missed the first packet
++            }
++            recordingBuffer = Unpooled.compositeBuffer();
++        }
++        recordingBuffer.addComponent(true, buf.readRetainedSlice(bodyLength));
++        if (sequence >= total) {
++            try {
++                recordingManager.complete(deviceId,
++                        RecordingParser.parse(recordingBuffer, getDeviceTimeZone(deviceId)));
++            } finally {
++                recordingBuffer.release();
++                recordingBuffer = null;
++            }
++        }
++    }
++
+     public Integer getProtocolVersion() {
+         return protocolVersion;
+     }
+@@ -440,6 +490,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+                 return position;
+             }
+ 
++        } else if (type == MSG_VIDEO_QUERY_RESPONSE) {
++
++            decodeRecordings(buf, attribute, bodyLength, deviceSession.getDeviceId());
++
++            return null;
++
+         } else if (type == MSG_TERMINAL_AUTH || type == MSG_HEARTBEAT_2
+                 || type == MSG_PHOTO || type == MSG_TERMINAL_LOGOUT || type == MSG_TIMEZONE_SYNC) {
+ 
+@@ -1961,4 +2017,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+         return null;
+     }
+ 
++    @Override
++    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
++        super.channelInactive(ctx);
++        if (recordingBuffer != null) {
++            recordingBuffer.release();
++            recordingBuffer = null;
++        }
++    }
++
+ }
+diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
+index ea248e9..3b60942 100644
+--- a/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
++++ b/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
+@@ -16,6 +16,7 @@
+ package org.traccar.protocol;
+ 
+ import io.netty.buffer.ByteBuf;
++import io.netty.buffer.ByteBufUtil;
+ import io.netty.buffer.Unpooled;
+ import io.netty.channel.Channel;
+ import org.traccar.BasePipelineFactory;
+@@ -34,12 +35,20 @@ import java.time.Instant;
+ import java.time.ZoneId;
+ import java.time.format.DateTimeFormatter;
+ import java.util.Set;
++import java.util.TimeZone;
+ 
+ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
+ 
+     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter
+             .ofPattern("yyMMddHHmmss").withZone(ZoneId.systemDefault());
+ 
++    private static final DateTimeFormatter BCD_TIME_FORMAT = DateTimeFormatter.ofPattern("yyMMddHHmmss");
++
++    private static void writeTime(ByteBuf data, String value, TimeZone timeZone) {
++        String text = BCD_TIME_FORMAT.format(Instant.parse(value).atZone(timeZone.toZoneId()));
++        data.writeBytes(ByteBufUtil.decodeHexDump(text));
++    }
++
+     public Jt808ProtocolEncoder(Protocol protocol) {
+         super(protocol);
+     }
+@@ -57,6 +66,7 @@ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
+         ByteBuf id = Jt808ProtocolDecoder.encodeId(
+                 getUniqueId(command.getDeviceId()), protocolVersion != null ? 10 : 6);
+         String model = getDeviceModel(command.getDeviceId());
++        TimeZone timeZone = decoder.getDeviceTimeZone(command.getDeviceId());
+         try {
+             ByteBuf data = Unpooled.buffer();
+ 
+@@ -209,6 +219,42 @@ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
+                     data.writeByte(0); // main stream
+                     return decoder.formatMessage(
+                             Jt808ProtocolDecoder.MSG_VIDEO_REQUEST, id, false, data);
++                case Command.TYPE_VIDEO_QUERY:
++                    data.writeByte(command.getInteger(Command.KEY_INDEX, 1)); // channel
++                    writeTime(data, command.getString(Command.KEY_START_TIME), timeZone);
++                    writeTime(data, command.getString(Command.KEY_END_TIME), timeZone);
++                    data.writeLong(0); // alarm flags
++                    data.writeByte(0); // audio and video
++                    data.writeByte(0); // main or sub stream
++                    data.writeByte(0); // main or backup storage
++                    return decoder.formatMessage(
++                            Jt808ProtocolDecoder.MSG_VIDEO_QUERY, id, false, data);
++                case Command.TYPE_VIDEO_PLAYBACK:
++                    var playbackConfig = getCacheManager().getConfig();
++                    String playbackHost = URI.create(playbackConfig.getString(Keys.WEB_URL)).getHost();
++                    int playbackPort = playbackConfig.getInteger(
++                            Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(Jt1078Protocol.class)));
++                    data.writeByte(playbackHost.length());
++                    data.writeCharSequence(playbackHost, StandardCharsets.US_ASCII);
++                    data.writeShort(playbackPort); // tcp port
++                    data.writeShort(0); // udp port
++                    data.writeByte(command.getInteger(Command.KEY_INDEX, 1)); // channel
++                    data.writeByte(0); // audio and video
++                    data.writeByte(0); // main or sub stream
++                    data.writeByte(0); // main or backup storage
++                    data.writeByte(0); // normal playback
++                    data.writeByte(0); // speed
++                    writeTime(data, command.getString(Command.KEY_START_TIME), timeZone);
++                    writeTime(data, command.getString(Command.KEY_END_TIME), timeZone);
++                    return decoder.formatMessage(
++                            Jt808ProtocolDecoder.MSG_VIDEO_PLAYBACK, id, false, data);
++                case Command.TYPE_VIDEO_PLAYBACK_STOP:
++                    data.writeByte(command.getInteger(Command.KEY_INDEX, 1)); // channel
++                    data.writeByte(2); // end playback
++                    data.writeByte(0); // speed
++                    data.writeZero(6); // position
++                    return decoder.formatMessage(
++                            Jt808ProtocolDecoder.MSG_VIDEO_PLAYBACK_CONTROL, id, false, data);
+                 case Command.TYPE_VIDEO_STOP:
+                     data.writeByte(command.getInteger(Command.KEY_INDEX, 1));
+                     data.writeByte(0); // close audio/video transmission
+diff --git a/src/main/java/org/traccar/session/state/OverspeedProcessor.java b/src/main/java/org/traccar/session/state/OverspeedProcessor.java
+index 15be9c3..d2443d0 100644
+--- a/src/main/java/org/traccar/session/state/OverspeedProcessor.java
++++ b/src/main/java/org/traccar/session/state/OverspeedProcessor.java
+@@ -24,6 +24,22 @@ public final class OverspeedProcessor {
+ 
+     private OverspeedProcessor() {}
+ 
++    public static final String MODE_FIXED = "fixed";
++    public static final String MODE_LOWEST = "lowest";
++
++    /**
++     * Choose the effective speed limit from the fixed (configured) limit and the one from the map provider.
++     */
++    public static double resolveSpeedLimit(double fixedLimit, double mapLimit, String mode) {
++        if (mapLimit <= 0 || MODE_FIXED.equals(mode)) {
++            return fixedLimit;
++        }
++        if (MODE_LOWEST.equals(mode) && fixedLimit > 0) {
++            return Math.min(fixedLimit, mapLimit);
++        }
++        return mapLimit;
++    }
++
+     public static void updateState(
+             OverspeedState state, Position position,
+             double speedLimit, double multiplier, long minimalDuration, long geofenceId) {
+diff --git a/src/main/java/org/traccar/speedlimit/CachingSpeedLimitProvider.java b/src/main/java/org/traccar/speedlimit/CachingSpeedLimitProvider.java
+new file mode 100644
+index 0000000..a47f638
+--- /dev/null
++++ b/src/main/java/org/traccar/speedlimit/CachingSpeedLimitProvider.java
+@@ -0,0 +1,92 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.speedlimit;
++
++import java.util.LinkedHashMap;
++import java.util.Map;
++
++/**
++ * Wraps another provider and caches results by location (about 11 meters grid) to avoid querying the external
++ * service for every position. Missing limits are cached too, but network errors are not.
++ */
++public class CachingSpeedLimitProvider implements SpeedLimitProvider {
++
++    private static final int MAX_ENTRIES = 50_000;
++    private static final double GRID = 10_000; // 4 decimal places
++
++    private record Entry(Double limit, long expires) {
++    }
++
++    private final SpeedLimitProvider delegate;
++    private final long ttl;
++    private final Map<Long, Entry> cache = new LinkedHashMap<>(1024, 0.75f, true) {
++        @Override
++        protected boolean removeEldestEntry(Map.Entry<Long, Entry> eldest) {
++            return size() > MAX_ENTRIES;
++        }
++    };
++
++    public CachingSpeedLimitProvider(SpeedLimitProvider delegate, long ttl) {
++        this.delegate = delegate;
++        this.ttl = ttl;
++    }
++
++    private static long key(double latitude, double longitude) {
++        long lat = Math.round(latitude * GRID);
++        long lon = Math.round(longitude * GRID);
++        return (lat << 32) ^ (lon & 0xffffffffL);
++    }
++
++    @Override
++    public void getSpeedLimit(double latitude, double longitude, SpeedLimitProviderCallback callback) {
++        long key = key(latitude, longitude);
++        long now = System.currentTimeMillis();
++        Entry entry;
++        synchronized (cache) {
++            entry = cache.get(key);
++        }
++        if (entry != null && entry.expires() > now) {
++            if (entry.limit() != null) {
++                callback.onSuccess(entry.limit());
++            } else {
++                callback.onFailure(new SpeedLimitException("Not found (cached)"));
++            }
++            return;
++        }
++        delegate.getSpeedLimit(latitude, longitude, new SpeedLimitProviderCallback() {
++            @Override
++            public void onSuccess(double speedLimit) {
++                put(key, new Entry(speedLimit, System.currentTimeMillis() + ttl));
++                callback.onSuccess(speedLimit);
++            }
++
++            @Override
++            public void onFailure(Throwable e) {
++                if (e instanceof SpeedLimitException) {
++                    put(key, new Entry(null, System.currentTimeMillis() + ttl));
++                }
++                callback.onFailure(e);
++            }
++        });
++    }
++
++    private void put(long key, Entry entry) {
++        synchronized (cache) {
++            cache.put(key, entry);
++        }
++    }
++
++}
+diff --git a/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java b/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java
+index 94f038d..39c6474 100644
+--- a/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java
++++ b/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java
+@@ -59,6 +59,17 @@ public class OverspeedEventHandlerTest extends BaseTest {
+         verifyState(state, false, 0);
+     }
+ 
++    @Test
++    public void testResolveSpeedLimit() {
++        assertEquals(50, OverspeedProcessor.resolveSpeedLimit(50, 0, null));
++        assertEquals(30, OverspeedProcessor.resolveSpeedLimit(50, 30, null));
++        assertEquals(30, OverspeedProcessor.resolveSpeedLimit(0, 30, null));
++        assertEquals(50, OverspeedProcessor.resolveSpeedLimit(50, 30, "fixed"));
++        assertEquals(30, OverspeedProcessor.resolveSpeedLimit(50, 30, "lowest"));
++        assertEquals(40, OverspeedProcessor.resolveSpeedLimit(40, 90, "lowest"));
++        assertEquals(30, OverspeedProcessor.resolveSpeedLimit(0, 30, "lowest"));
++    }
++
+     @Test
+     public void testOverspeedEventHandler() throws Exception {
+         testOverspeedWithPosition(0);
+diff --git a/src/test/java/org/traccar/media/RecordingParserTest.java b/src/test/java/org/traccar/media/RecordingParserTest.java
+new file mode 100644
+index 0000000..b7e0518
+--- /dev/null
++++ b/src/test/java/org/traccar/media/RecordingParserTest.java
+@@ -0,0 +1,75 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.media;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.ByteBufUtil;
++import io.netty.buffer.Unpooled;
++import org.junit.jupiter.api.Test;
++
++import java.time.Instant;
++import java.util.TimeZone;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++public class RecordingParserTest {
++
++    private static void item(ByteBuf buf, int channel, String start, String end, long size) {
++        buf.writeByte(channel);
++        buf.writeBytes(ByteBufUtil.decodeHexDump(start));
++        buf.writeBytes(ByteBufUtil.decodeHexDump(end));
++        buf.writeLong(0);
++        buf.writeByte(0);
++        buf.writeByte(1);
++        buf.writeByte(1);
++        buf.writeInt((int) size);
++    }
++
++    @Test
++    public void testParse() {
++        ByteBuf buf = Unpooled.buffer();
++        buf.writeShort(7);
++        buf.writeInt(2);
++        item(buf, 1, "261106100000", "261106100500", 1048576);
++        item(buf, 2, "261106100500", "261106101000", 2097152);
++
++        var result = RecordingParser.parse(buf, TimeZone.getTimeZone("UTC"));
++
++        assertEquals(2, result.size());
++        assertEquals(1, result.get(0).channel());
++        assertEquals(Instant.parse("2026-11-06T10:00:00Z"), result.get(0).startTime().toInstant());
++        assertEquals(Instant.parse("2026-11-06T10:05:00Z"), result.get(0).endTime().toInstant());
++        assertEquals(1048576, result.get(0).size());
++        assertEquals(2, result.get(1).channel());
++    }
++
++    @Test
++    public void testTimeZoneAndTruncation() {
++        ByteBuf buf = Unpooled.buffer();
++        buf.writeShort(1);
++        buf.writeInt(3); // claims 3 items but only one complete + partial
++        item(buf, 1, "261106180000", "261106180500", 10);
++        buf.writeBytes(new byte[10]);
++
++        var result = RecordingParser.parse(buf, TimeZone.getTimeZone("GMT+8"));
++
++        assertEquals(1, result.size());
++        assertEquals(Instant.parse("2026-11-06T10:00:00Z"), result.get(0).startTime().toInstant());
++        assertTrue(RecordingParser.parse(Unpooled.buffer(), TimeZone.getTimeZone("UTC")).isEmpty());
++    }
++
++}
+diff --git a/src/test/java/org/traccar/speedlimit/CachingSpeedLimitProviderTest.java b/src/test/java/org/traccar/speedlimit/CachingSpeedLimitProviderTest.java
+new file mode 100644
+index 0000000..542955c
+--- /dev/null
++++ b/src/test/java/org/traccar/speedlimit/CachingSpeedLimitProviderTest.java
+@@ -0,0 +1,81 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.speedlimit;
++
++import org.junit.jupiter.api.Test;
++
++import java.util.concurrent.atomic.AtomicInteger;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++public class CachingSpeedLimitProviderTest {
++
++    private static double[] query(SpeedLimitProvider provider, double lat, double lon) {
++        double[] result = {-1};
++        provider.getSpeedLimit(lat, lon, new SpeedLimitProvider.SpeedLimitProviderCallback() {
++            @Override
++            public void onSuccess(double speedLimit) {
++                result[0] = speedLimit;
++            }
++
++            @Override
++            public void onFailure(Throwable e) {
++                result[0] = -2;
++            }
++        });
++        return result;
++    }
++
++    @Test
++    public void testCachesFoundAndMissing() {
++        AtomicInteger calls = new AtomicInteger();
++        SpeedLimitProvider delegate = (lat, lon, callback) -> {
++            calls.incrementAndGet();
++            if (lat > 10) {
++                callback.onSuccess(8.0);
++            } else {
++                callback.onFailure(new SpeedLimitException("Not found"));
++            }
++        };
++        var provider = new CachingSpeedLimitProvider(delegate, 60_000);
++
++        assertEquals(8.0, query(provider, 20.00001, 30.00001)[0]);
++        assertEquals(8.0, query(provider, 20.00002, 30.00002)[0]);
++        assertEquals(1, calls.get());
++
++        assertEquals(-2, query(provider, 1.0, 1.0)[0]);
++        assertEquals(-2, query(provider, 1.0, 1.0)[0]);
++        assertEquals(2, calls.get());
++
++        assertEquals(8.0, query(provider, 20.5, 30.5)[0]);
++        assertEquals(3, calls.get());
++    }
++
++    @Test
++    public void testDoesNotCacheNetworkErrors() {
++        AtomicInteger calls = new AtomicInteger();
++        SpeedLimitProvider delegate = (lat, lon, callback) -> {
++            calls.incrementAndGet();
++            callback.onFailure(new RuntimeException("timeout"));
++        };
++        var provider = new CachingSpeedLimitProvider(delegate, 60_000);
++        query(provider, 5, 5);
++        query(provider, 5, 5);
++        assertTrue(calls.get() == 2);
++    }
++
++}
+-- 
+2.43.0
+
