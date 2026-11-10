@@ -515,7 +515,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 })}
                 <ActionButton
                   icon={<MoreVertIcon />}
-                  label={t('sharedExtra')}
+                  label={t('cardMore')}
                   disabled={!position}
                   onClick={(e) => setAnchorEl(e.currentTarget)}
                 />
