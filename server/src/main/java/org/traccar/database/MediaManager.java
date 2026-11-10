@@ -88,4 +88,31 @@ public class MediaManager {
         return null;
     }
 
+    public boolean isEnabled() {
+        return path != null;
+    }
+
+    /**
+     * Resolves a file inside the folder of a device, creating parent folders when requested. Returns null if the path
+     * is not inside the media folder.
+     */
+    public File resolveFile(String uniqueId, String relativePath, boolean create) {
+        if (path == null) {
+            return null;
+        }
+        try {
+            Path filePath = path.resolve(uniqueId).resolve(relativePath).normalize();
+            if (!filePath.startsWith(path.resolve(uniqueId))) {
+                return null;
+            }
+            if (create && filePath.getParent() != null) {
+                Files.createDirectories(filePath.getParent());
+            }
+            return filePath.toFile();
+        } catch (IOException e) {
+            LOGGER.warn("Media path error", e);
+            return null;
+        }
+    }
+
 }

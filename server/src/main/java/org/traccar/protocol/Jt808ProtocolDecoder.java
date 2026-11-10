@@ -68,6 +68,7 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
 
     public static final int MSG_TERMINAL_GENERAL_RESPONSE = 0x0001;
     public static final int MSG_GENERAL_RESPONSE = 0x8001;
+    public static final int MSG_ALARM_ATTACHMENT_UPLOAD = 0x9208;
     public static final int MSG_GENERAL_RESPONSE_2 = 0x4401;
     public static final int MSG_HEARTBEAT = 0x0002;
     public static final int MSG_TERMINAL_LOGOUT = 0x0003;
@@ -218,8 +219,41 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
         }
     }
 
+    /**
+     * JT/T 1078 alarm attachment upload command (0x9208): the device uploads the photos and clips of the alarm to the
+     * attachment server (jt808attachment protocol port).
+     */
+    private void requestAlarmAttachments(
+            Channel channel, SocketAddress remoteAddress, ByteBuf id, Position position, String host) {
+        String label = position.getString("alarmLabel");
+        if (label == null || label.length() != 32) {
+            return;
+        }
+        int attachments = Integer.parseInt(label.substring(28, 30), 16); // number of attachments
+        int port = getConfig().getInteger(
+                Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(Jt808AttachmentProtocol.class)));
+        if (attachments == 0 || port <= 0) {
+            return;
+        }
+        ByteBuf data = Unpooled.buffer();
+        data.writeByte(host.length());
+        data.writeCharSequence(host, StandardCharsets.US_ASCII);
+        data.writeShort(port); // TCP port
+        data.writeShort(0); // UDP port
+        data.writeBytes(DataConverter.parseHex(label)); // alarm identification number
+        data.writeCharSequence(label, StandardCharsets.US_ASCII); // alarm number assigned by the platform (32 bytes)
+        data.writeZero(16); // reserved
+        channel.writeAndFlush(new NetworkMessage(
+                formatMessage(MSG_ALARM_ATTACHMENT_UPLOAD, id, false, data), remoteAddress));
+    }
+
     private void requestAttachments(Channel channel, SocketAddress remoteAddress, ByteBuf id, Position position) {
         if (channel == null || position == null || !position.hasAttribute("alarmLabel")) {
+            return;
+        }
+        String attachmentHost = getConfig().getString(Keys.JT808_ATTACHMENT_HOST);
+        if (attachmentHost != null && !attachmentHost.isEmpty()) {
+            requestAlarmAttachments(channel, remoteAddress, id, position, attachmentHost);
             return;
         }
         String webUrl = getConfig().getString(Keys.WEB_URL);

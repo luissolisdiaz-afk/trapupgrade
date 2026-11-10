@@ -1,3 +1,18 @@
+diff --git a/src/main/java/org/traccar/BaseProtocolDecoder.java b/src/main/java/org/traccar/BaseProtocolDecoder.java
+index f666aff..c744c2c 100644
+--- a/src/main/java/org/traccar/BaseProtocolDecoder.java
++++ b/src/main/java/org/traccar/BaseProtocolDecoder.java
+@@ -80,6 +80,10 @@ public abstract class BaseProtocolDecoder extends ExtendedObjectDecoder {
+         this.statisticsManager = statisticsManager;
+     }
+ 
++    public MediaManager getMediaManager() {
++        return mediaManager;
++    }
++
+     @Inject
+     public void setMediaManager(MediaManager mediaManager) {
+         this.mediaManager = mediaManager;
 diff --git a/src/main/java/org/traccar/MainModule.java b/src/main/java/org/traccar/MainModule.java
 index 524430e..6eccebb 100644
 --- a/src/main/java/org/traccar/MainModule.java
@@ -72,6 +87,178 @@ index 5026acf..0dadbf9 100644
      protected UserPrincipal getUserPrincipal() {
          return (UserPrincipal) securityContext.getUserPrincipal();
      }
+diff --git a/src/main/java/org/traccar/api/resource/AlarmFileResource.java b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
+new file mode 100644
+index 0000000..a0d55a6
+--- /dev/null
++++ b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
+@@ -0,0 +1,166 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.api.resource;
++
++import jakarta.inject.Inject;
++import jakarta.ws.rs.GET;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.PathParam;
++import jakarta.ws.rs.Produces;
++import jakarta.ws.rs.QueryParam;
++import jakarta.ws.rs.WebApplicationException;
++import jakarta.ws.rs.core.MediaType;
++import jakarta.ws.rs.core.Response;
++import org.traccar.api.BaseResource;
++import org.traccar.database.MediaManager;
++import org.traccar.media.AlarmClipConverter;
++import org.traccar.model.Device;
++import org.traccar.storage.StorageException;
++import org.traccar.storage.query.Columns;
++import org.traccar.storage.query.Condition;
++import org.traccar.storage.query.Request;
++
++import java.io.File;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Comparator;
++import java.util.Locale;
++import java.util.regex.Pattern;
++
++/**
++ * Photos and video clips uploaded by dashcams for an alarm. Files are identified by the alarm label stored in the
++ * position attribute alarmLabel. Raw H.264 clips are served as a short HLS playlist so browsers can play them.
++ */
++@Path("alarmfiles")
++@Produces(MediaType.APPLICATION_JSON)
++public class AlarmFileResource extends BaseResource {
++
++    private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
++    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
++    private static final long MAX_CLIP_SIZE = 64L * 1024 * 1024;
++
++    public record AlarmFile(String name, String kind, long size) { }
++
++    @Inject
++    private MediaManager mediaManager;
++
++    private File resolve(long deviceId, String label, String name) throws StorageException {
++        checkCamerasEnabled();
++        permissionsService.checkPermission(Device.class, getUserId(), deviceId);
++        Device device = storage.getObject(Device.class, new Request(
++                new Columns.Include("uniqueId"), new Condition.Equals("id", deviceId)));
++        if (device == null || !LABEL.matcher(label).matches() || (name != null && !NAME.matcher(name).matches())) {
++            throw new WebApplicationException(Response.Status.NOT_FOUND);
++        }
++        File file = mediaManager.resolveFile(
++                device.getUniqueId(), "alarms/" + label + (name != null ? "/" + name : ""), false);
++        if (file == null) {
++            throw new WebApplicationException(Response.Status.NOT_FOUND);
++        }
++        return file;
++    }
++
++    private static String kind(String name) {
++        String lower = name.toLowerCase(Locale.ROOT);
++        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
++            return "image";
++        } else if (lower.endsWith(".h264") || lower.endsWith(".264") || lower.endsWith(".mp4")) {
++            return "video";
++        } else if (lower.endsWith(".wav")) {
++            return "audio";
++        }
++        return "other";
++    }
++
++    @GET
++    public Collection<AlarmFile> get(
++            @QueryParam("deviceId") long deviceId,
++            @QueryParam("label") String label) throws StorageException {
++
++        File directory = resolve(deviceId, label, null);
++        File[] files = directory.isDirectory() ? directory.listFiles(File::isFile) : null;
++        var result = new ArrayList<AlarmFile>();
++        if (files != null) {
++            Arrays.sort(files, Comparator.comparing(File::getName));
++            for (File file : files) {
++                if (file.length() > 0) {
++                    result.add(new AlarmFile(file.getName(), kind(file.getName()), file.length()));
++                }
++            }
++        }
++        return result;
++    }
++
++    @GET
++    @Path("{deviceId}/{label}/{name}")
++    public Response file(
++            @PathParam("deviceId") long deviceId,
++            @PathParam("label") String label,
++            @PathParam("name") String name) throws StorageException {
++
++        File file = resolve(deviceId, label, name);
++        if (!file.isFile()) {
++            return Response.status(Response.Status.NOT_FOUND).build();
++        }
++        String lower = name.toLowerCase(Locale.ROOT);
++        String type = lower.endsWith(".png") ? "image/png"
++                : lower.endsWith(".jpg") || lower.endsWith(".jpeg") ? "image/jpeg"
++                : lower.endsWith(".wav") ? "audio/wav"
++                : lower.endsWith(".mp4") ? "video/mp4" : "application/octet-stream";
++        return Response.ok(file, type).build();
++    }
++
++    private AlarmClipConverter.Result convert(File file) {
++        try {
++            if (!file.isFile() || file.length() > MAX_CLIP_SIZE) {
++                throw new WebApplicationException(Response.Status.NOT_FOUND);
++            }
++            return AlarmClipConverter.toTransportStream(Files.readAllBytes(file.toPath()));
++        } catch (IOException e) {
++            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
++        }
++    }
++
++    @GET
++    @Path("{deviceId}/{label}/{name}/playlist.m3u8")
++    public Response playlist(
++            @PathParam("deviceId") long deviceId,
++            @PathParam("label") String label,
++            @PathParam("name") String name) throws StorageException {
++
++        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
++        double duration = clip.durationSeconds();
++        String playlist = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n"
++                + "#EXT-X-TARGETDURATION:" + (int) Math.ceil(duration) + "\n#EXT-X-MEDIA-SEQUENCE:0\n"
++                + String.format(Locale.ROOT, "#EXTINF:%.3f,\n", duration) + "video.ts\n#EXT-X-ENDLIST\n";
++        return Response.ok(playlist, "application/vnd.apple.mpegurl").build();
++    }
++
++    @GET
++    @Path("{deviceId}/{label}/{name}/video.ts")
++    public Response transportStream(
++            @PathParam("deviceId") long deviceId,
++            @PathParam("label") String label,
++            @PathParam("name") String name) throws StorageException {
++
++        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
++        return Response.ok(clip.data(), "video/mp2t").build();
++    }
++
++}
 diff --git a/src/main/java/org/traccar/api/resource/DeviceResource.java b/src/main/java/org/traccar/api/resource/DeviceResource.java
 index 8aedc0b..73bdd31 100644
 --- a/src/main/java/org/traccar/api/resource/DeviceResource.java
@@ -407,7 +594,7 @@ index 17223ac..0661988 100644
  
      public <T extends BaseModel> void checkPermission(
 diff --git a/src/main/java/org/traccar/config/Keys.java b/src/main/java/org/traccar/config/Keys.java
-index 6aaa944..00a0bf7 100644
+index 6aaa944..bd3d008 100644
 --- a/src/main/java/org/traccar/config/Keys.java
 +++ b/src/main/java/org/traccar/config/Keys.java
 @@ -427,6 +427,23 @@ public final class Keys {
@@ -458,6 +645,78 @@ index 6aaa944..00a0bf7 100644
      /**
       * Override latitude sign / hemisphere. Useful in cases where value is incorrect because of device bug. Value can be
       * N for North or S for South.
+@@ -2222,6 +2256,15 @@ public final class Keys {
+             "web.persistSession",
+             List.of(KeyType.CONFIG));
+ 
++    /**
++     * Public host name or IP address that JT808 devices (dashcams) use to upload alarm attachments (photos and video
++     * clips). Devices connect to this host on the port of the jt808attachment protocol. If not set, the server does not
++     * request attachments with the JT/T 1078 attachment upload command.
++     */
++    public static final ConfigKey<String> JT808_ATTACHMENT_HOST = new StringConfigKey(
++            "jt808.attachmentHost",
++            List.of(KeyType.CONFIG));
++
+     /**
+      * Public URL for the web app. Used for notifications, report links, and OpenID Connect.
+      * Its path also sets the HTML base path when hosted behind a reverse proxy.
+diff --git a/src/main/java/org/traccar/config/ProtocolConfig.java b/src/main/java/org/traccar/config/ProtocolConfig.java
+index c4b8e7a..6d6b29d 100644
+--- a/src/main/java/org/traccar/config/ProtocolConfig.java
++++ b/src/main/java/org/traccar/config/ProtocolConfig.java
+@@ -123,6 +123,7 @@ import org.traccar.protocol.ItsProtocol;
+ import org.traccar.protocol.Ivt401Protocol;
+ import org.traccar.protocol.JidoProtocol;
+ import org.traccar.protocol.JimiPhotoProtocol;
++import org.traccar.protocol.Jt808AttachmentProtocol;
+ import org.traccar.protocol.JmakProtocol;
+ import org.traccar.protocol.JpKorjarProtocol;
+ import org.traccar.protocol.Jt1078Protocol;
+@@ -571,6 +572,7 @@ public final class ProtocolConfig {
+         put(R16hProtocol.class, 5266);
+         put(JimiPhotoProtocol.class, 5267);
+         put(TeltonikaIridiumProtocol.class, 5268);
++        put(Jt808AttachmentProtocol.class, 5269);
+     }
+ 
+     public static Map<String, Class<? extends BaseProtocol>> getProtocolClasses() {
+diff --git a/src/main/java/org/traccar/database/MediaManager.java b/src/main/java/org/traccar/database/MediaManager.java
+index 9c84bf4..8dce0bc 100644
+--- a/src/main/java/org/traccar/database/MediaManager.java
++++ b/src/main/java/org/traccar/database/MediaManager.java
+@@ -88,4 +88,31 @@ public class MediaManager {
+         return null;
+     }
+ 
++    public boolean isEnabled() {
++        return path != null;
++    }
++
++    /**
++     * Resolves a file inside the folder of a device, creating parent folders when requested. Returns null if the path
++     * is not inside the media folder.
++     */
++    public File resolveFile(String uniqueId, String relativePath, boolean create) {
++        if (path == null) {
++            return null;
++        }
++        try {
++            Path filePath = path.resolve(uniqueId).resolve(relativePath).normalize();
++            if (!filePath.startsWith(path.resolve(uniqueId))) {
++                return null;
++            }
++            if (create && filePath.getParent() != null) {
++                Files.createDirectories(filePath.getParent());
++            }
++            return filePath.toFile();
++        } catch (IOException e) {
++            LOGGER.warn("Media path error", e);
++            return null;
++        }
++    }
++
+ }
 diff --git a/src/main/java/org/traccar/handler/SpeedLimitHandler.java b/src/main/java/org/traccar/handler/SpeedLimitHandler.java
 index adda6ac..2f4f7b8 100644
 --- a/src/main/java/org/traccar/handler/SpeedLimitHandler.java
@@ -530,6 +789,141 @@ index 48c413b..4f4fb24 100644
          if (state.isChanged()) {
              state.toDevice(device);
              try {
+diff --git a/src/main/java/org/traccar/media/AlarmClipConverter.java b/src/main/java/org/traccar/media/AlarmClipConverter.java
+new file mode 100644
+index 0000000..5ab9857
+--- /dev/null
++++ b/src/main/java/org/traccar/media/AlarmClipConverter.java
+@@ -0,0 +1,129 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.media;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.Unpooled;
++
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Converts a raw H.264 (Annex B) clip, as uploaded by dashcams for alarms, to an MPEG transport stream that browsers
++ * can play through HLS.
++ */
++public final class AlarmClipConverter {
++
++    public static final int FRAME_RATE = 25;
++    private static final int H264_PAYLOAD_TYPE = 98;
++
++    public record Result(byte[] data, int frames) {
++        public double durationSeconds() {
++            return Math.max(1.0, (double) frames / FRAME_RATE);
++        }
++    }
++
++    private AlarmClipConverter() {
++    }
++
++    private static int nalType(byte[] data, int start) {
++        return data[start] & 0x1f;
++    }
++
++    /**
++     * Returns the index of the next start code at or after from (pointing to the first 0 of the 00 00 01 prefix), or
++     * -1.
++     */
++    private static int findStartCode(byte[] data, int from) {
++        for (int i = from; i + 3 <= data.length; i++) {
++            if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1) {
++                return i;
++            }
++        }
++        return -1;
++    }
++
++    public static Result toTransportStream(byte[] data) {
++
++        // split into NAL units: [start of start code, start of payload, end]
++        List<int[]> nals = new ArrayList<>();
++        int position = findStartCode(data, 0);
++        while (position >= 0) {
++            int payload = position + 3;
++            int next = findStartCode(data, payload);
++            int end = next >= 0 ? next : data.length;
++            // trailing zero belongs to the next four byte start code
++            while (end > payload && data[end - 1] == 0 && next >= 0) {
++                end--;
++            }
++            if (payload < end) {
++                nals.add(new int[] {position, payload, end});
++            }
++            position = next;
++        }
++
++        VideoStreamWriter writer = new VideoStreamWriter();
++        ByteBuf output = Unpooled.buffer(data.length + data.length / 10);
++        ByteBuf unit = Unpooled.buffer();
++        boolean key = false;
++        boolean hasVcl = false;
++        int frames = 0;
++
++        try {
++            for (int[] nal : nals) {
++                int type = nalType(data, nal[1]);
++                boolean vcl = type == 1 || type == 5;
++                boolean firstSlice = vcl && nal[1] + 1 < nal[2] && (data[nal[1] + 1] & 0x80) != 0;
++                boolean startsUnit = type == 9 || type == 7 || type == 6 || firstSlice;
++
++                if (hasVcl && startsUnit) {
++                    // previous access unit is complete
++                    writer.write(output, unit, (long) frames * 1000 / FRAME_RATE, key, H264_PAYLOAD_TYPE);
++                    frames++;
++                    unit.clear();
++                    key = false;
++                    hasVcl = false;
++                }
++                if (type == 9) {
++                    continue; // access unit delimiter is added by the writer
++                }
++                unit.writeByte(0);
++                unit.writeByte(0);
++                unit.writeByte(0);
++                unit.writeByte(1);
++                unit.writeBytes(data, nal[1], nal[2] - nal[1]);
++                if (vcl) {
++                    hasVcl = true;
++                    if (type == 5) {
++                        key = true;
++                    }
++                }
++            }
++            if (hasVcl) {
++                writer.write(output, unit, (long) frames * 1000 / FRAME_RATE, key, H264_PAYLOAD_TYPE);
++                frames++;
++            }
++
++            byte[] result = new byte[output.readableBytes()];
++            output.readBytes(result);
++            return new Result(result, frames);
++        } finally {
++            unit.release();
++            output.release();
++        }
++    }
++
++}
 diff --git a/src/main/java/org/traccar/media/Recording.java b/src/main/java/org/traccar/media/Recording.java
 new file mode 100644
 index 0000000..decdc82
@@ -996,6 +1390,407 @@ index 71ae26d..b91a452 100644
          return textTemplateFormatter.formatMessage(velocityContext, event.getType(), priority);
      }
  
+diff --git a/src/main/java/org/traccar/protocol/Jt808AttachmentFrameDecoder.java b/src/main/java/org/traccar/protocol/Jt808AttachmentFrameDecoder.java
+new file mode 100644
+index 0000000..0b57f5d
+--- /dev/null
++++ b/src/main/java/org/traccar/protocol/Jt808AttachmentFrameDecoder.java
+@@ -0,0 +1,97 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.protocol;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.Unpooled;
++import io.netty.channel.Channel;
++import io.netty.channel.ChannelHandlerContext;
++import org.traccar.BaseFrameDecoder;
++import org.traccar.BaseProtocol;
++
++/**
++ * Splits the attachment connection stream into JT808 messages (delimited by 0x7e) and file stream packets (starting
++ * with 0x30 0x31 0x63 0x64 and a length field).
++ */
++public class Jt808AttachmentFrameDecoder extends BaseFrameDecoder {
++
++    static final int DATA_HEADER_LENGTH = 62;
++    private static final int DATA_MAGIC = 0x30316364;
++
++    public Jt808AttachmentFrameDecoder() {
++        super(BaseProtocol.MAX_FRAME_LENGTH_LARGE);
++    }
++
++    @Override
++    protected Object decode(
++            ChannelHandlerContext ctx, Channel channel, ByteBuf buf) throws Exception {
++
++        while (buf.isReadable()) {
++            int b = buf.getUnsignedByte(buf.readerIndex());
++            if (b == 0x7e) {
++                break;
++            }
++            if (b == 0x30 && buf.readableBytes() >= 4 && buf.getInt(buf.readerIndex()) == DATA_MAGIC) {
++                break;
++            }
++            buf.skipBytes(1);
++        }
++
++        if (buf.readableBytes() < 4) {
++            return null;
++        }
++
++        if (buf.getUnsignedByte(buf.readerIndex()) == 0x30) {
++
++            if (buf.readableBytes() < DATA_HEADER_LENGTH) {
++                return null;
++            }
++            long length = buf.getUnsignedInt(buf.readerIndex() + 58);
++            if (length > 1024 * 1024) {
++                buf.skipBytes(4); // corrupted packet, resynchronize
++                return null;
++            }
++            int total = DATA_HEADER_LENGTH + (int) length;
++            if (buf.readableBytes() < total) {
++                return null;
++            }
++            return buf.readRetainedSlice(total);
++
++        }
++
++        int index = buf.indexOf(buf.readerIndex() + 1, buf.writerIndex(), (byte) 0x7e);
++        if (index < 0) {
++            return null;
++        }
++
++        ByteBuf result = Unpooled.buffer(index + 1 - buf.readerIndex());
++        while (buf.readerIndex() <= index) {
++            int b = buf.readUnsignedByte();
++            if (b == 0x7d && buf.readerIndex() <= index) {
++                int ext = buf.readUnsignedByte();
++                if (ext == 0x01) {
++                    result.writeByte(0x7d);
++                } else if (ext == 0x02) {
++                    result.writeByte(0x7e);
++                }
++            } else {
++                result.writeByte(b);
++            }
++        }
++        return result;
++    }
++
++}
+diff --git a/src/main/java/org/traccar/protocol/Jt808AttachmentProtocol.java b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocol.java
+new file mode 100644
+index 0000000..ddfa2a2
+--- /dev/null
++++ b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocol.java
+@@ -0,0 +1,43 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.protocol;
++
++import org.traccar.BaseProtocol;
++import org.traccar.PipelineBuilder;
++import org.traccar.TrackerServer;
++import org.traccar.config.Config;
++
++import jakarta.inject.Inject;
++
++/**
++ * Attachment server for JT/T 1078 (JSATL12) alarm attachments. Devices connect here after receiving the 0x9208
++ * command and upload photos and video clips related to ADAS / DSM alarms.
++ */
++public class Jt808AttachmentProtocol extends BaseProtocol {
++
++    @Inject
++    public Jt808AttachmentProtocol(Config config) {
++        addServer(new TrackerServer(config, getName(), false) {
++            @Override
++            protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
++                pipeline.addLast(new Jt808FrameEncoder());
++                pipeline.addLast(new Jt808AttachmentFrameDecoder());
++                pipeline.addLast(new Jt808AttachmentProtocolDecoder(Jt808AttachmentProtocol.this));
++            }
++        });
++    }
++
++}
+diff --git a/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java
+new file mode 100644
+index 0000000..44f88ca
+--- /dev/null
++++ b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java
+@@ -0,0 +1,243 @@
++/*
++ * Copyright 2026 Anton Tananaev (anton@traccar.org)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.protocol;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.ByteBufUtil;
++import io.netty.buffer.Unpooled;
++import io.netty.channel.Channel;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.traccar.BaseProtocolDecoder;
++import org.traccar.NetworkMessage;
++import org.traccar.Protocol;
++import org.traccar.helper.BitUtil;
++import org.traccar.helper.Checksum;
++import org.traccar.helper.StringUtil;
++import org.traccar.session.DeviceSession;
++
++import java.io.File;
++import java.io.IOException;
++import java.io.RandomAccessFile;
++import java.net.SocketAddress;
++import java.nio.charset.StandardCharsets;
++import java.util.regex.Pattern;
++
++/**
++ * Receives alarm attachments (JT/T 1078 / JSATL12 section 4): 0x1210 attachment list, 0x1211 file information,
++ * file stream packets and 0x1212 completion. Files are stored in
++ * media/{uniqueId}/alarms/{alarm identification as 32 hex characters}/{file name}.
++ */
++public class Jt808AttachmentProtocolDecoder extends BaseProtocolDecoder {
++
++    private static final Logger LOGGER = LoggerFactory.getLogger(Jt808AttachmentProtocolDecoder.class);
++
++    public static final int MSG_GENERAL_RESPONSE = 0x8001;
++    public static final int MSG_ATTACHMENT_LIST = 0x1210;
++    public static final int MSG_FILE_INFO = 0x1211;
++    public static final int MSG_FILE_COMPLETE = 0x1212;
++    public static final int MSG_FILE_COMPLETE_RESPONSE = 0x9212;
++
++    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
++    private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
++
++    private String lastLabel;
++
++    public Jt808AttachmentProtocolDecoder(Protocol protocol) {
++        super(protocol);
++    }
++
++    static String extractLabel(String fileName) {
++        // <type>_<channel>_<alarm type>_<serial>_<alarm number><suffix>, alarm number is 32 hex characters
++        String[] parts = fileName.split("_");
++        if (parts.length >= 5 && parts[4].length() >= 32) {
++            String label = parts[4].substring(0, 32).toLowerCase();
++            if (LABEL.matcher(label).matches()) {
++                return label;
++            }
++        }
++        return null;
++    }
++
++    private static String readName(ByteBuf buf, int length) {
++        byte[] data = new byte[length];
++        buf.readBytes(data);
++        int end = 0;
++        while (end < data.length && data[end] != 0) {
++            end++;
++        }
++        return new String(data, 0, end, StandardCharsets.US_ASCII).trim();
++    }
++
++    private ByteBuf format(int type, ByteBuf id, Integer version, ByteBuf data) {
++        ByteBuf buf = Unpooled.buffer();
++        buf.writeByte(0x7e);
++        buf.writeShort(type);
++        int attribute = data.readableBytes();
++        if (version != null) {
++            attribute |= 0x4000;
++        }
++        buf.writeShort(attribute);
++        if (version != null) {
++            buf.writeByte(version);
++        }
++        buf.writeBytes(id, id.readerIndex(), id.readableBytes());
++        buf.writeShort(0);
++        buf.writeBytes(data);
++        data.release();
++        buf.writeByte(Checksum.xor(buf.nioBuffer(1, buf.readableBytes() - 1)));
++        buf.writeByte(0x7e);
++        return buf;
++    }
++
++    private void sendGeneralResponse(
++            Channel channel, SocketAddress remoteAddress, ByteBuf id, Integer version, int type, int index) {
++        if (channel != null) {
++            ByteBuf response = Unpooled.buffer();
++            response.writeShort(index);
++            response.writeShort(type);
++            response.writeByte(0); // success
++            channel.writeAndFlush(new NetworkMessage(
++                    format(MSG_GENERAL_RESPONSE, id, version, response), remoteAddress));
++        }
++    }
++
++    private File resolve(DeviceSession deviceSession, String label, String name) {
++        if (label == null || !SAFE_NAME.matcher(name).matches() || !getMediaManager().isEnabled()) {
++            return null;
++        }
++        return getMediaManager().resolveFile(deviceSession.getUniqueId(), "alarms/" + label + "/" + name, true);
++    }
++
++    private DeviceSession findSession(Channel channel, SocketAddress remoteAddress, ByteBuf id) {
++        String uniqueId = Jt808ProtocolDecoder.decodeId(id);
++        String stripped = StringUtil.stripLeading('0', uniqueId);
++        return uniqueId.equals(stripped)
++                ? getDeviceSession(channel, remoteAddress, uniqueId)
++                : getDeviceSession(channel, remoteAddress, stripped, uniqueId);
++    }
++
++    @Override
++    protected Object decode(Channel channel, SocketAddress remoteAddress, Object msg) throws Exception {
++
++        ByteBuf buf = (ByteBuf) msg;
++
++        if (buf.getUnsignedByte(buf.readerIndex()) == 0x30) {
++            decodeData(channel, remoteAddress, buf);
++            return null;
++        }
++
++        buf.readUnsignedByte(); // delimiter
++        int type = buf.readUnsignedShort();
++        int attribute = buf.readUnsignedShort();
++        int bodyLength = BitUtil.to(attribute, 10);
++        Integer version = BitUtil.check(attribute, 14) ? (int) buf.readUnsignedByte() : null;
++        ByteBuf id = buf.readSlice(version != null ? 10 : 6);
++        int index = buf.readUnsignedShort();
++        if (BitUtil.check(attribute, 13)) {
++            buf.skipBytes(4); // packet count and number
++        }
++        if (buf.readableBytes() < bodyLength) {
++            return null;
++        }
++
++        DeviceSession deviceSession = findSession(channel, remoteAddress, id);
++
++        sendGeneralResponse(channel, remoteAddress, id, version, type, index);
++        if (deviceSession == null) {
++            return null;
++        }
++
++        switch (type) {
++            case MSG_ATTACHMENT_LIST -> {
++                buf.skipBytes(7); // terminal id
++                lastLabel = ByteBufUtil.hexDump(buf.readSlice(16));
++                buf.skipBytes(32); // alarm number
++                buf.readUnsignedByte(); // information type
++                int count = buf.readUnsignedByte();
++                for (int i = 0; i < count && buf.readableBytes() > 5; i++) {
++                    String name = readName(buf, buf.readUnsignedByte());
++                    long size = buf.readUnsignedInt();
++                    LOGGER.debug("Alarm attachment announced: {} ({} bytes)", name, size);
++                }
++            }
++            case MSG_FILE_COMPLETE -> {
++                String name = readName(buf, buf.readUnsignedByte());
++                int fileType = buf.readUnsignedByte();
++                long size = buf.readUnsignedInt();
++                sendCompletion(channel, remoteAddress, id, version, deviceSession, name, fileType, size);
++            }
++            default -> { }
++        }
++
++        return null;
++    }
++
++    private void sendCompletion(
++            Channel channel, SocketAddress remoteAddress, ByteBuf id, Integer version,
++            DeviceSession deviceSession, String name, int fileType, long size) {
++        if (channel == null) {
++            return;
++        }
++        String label = extractLabel(name);
++        File file = resolve(deviceSession, label != null ? label : lastLabel, name);
++        long received = file != null && file.exists() ? file.length() : 0;
++        boolean complete = received >= size;
++
++        ByteBuf response = Unpooled.buffer();
++        response.writeByte(name.length());
++        response.writeCharSequence(name, StandardCharsets.US_ASCII);
++        response.writeByte(fileType);
++        response.writeByte(complete ? 0x00 : 0x01);
++        if (complete) {
++            response.writeByte(0);
++        } else {
++            response.writeByte(1);
++            response.writeInt((int) received);
++            response.writeInt((int) (size - received));
++        }
++        channel.writeAndFlush(new NetworkMessage(
++                format(MSG_FILE_COMPLETE_RESPONSE, id, version, response), remoteAddress));
++        if (complete) {
++            LOGGER.info("Alarm attachment received: {} / {} ({} bytes)", deviceSession.getUniqueId(), name, size);
++        }
++    }
++
++    private void decodeData(Channel channel, SocketAddress remoteAddress, ByteBuf buf) {
++        buf.skipBytes(4); // magic
++        String name = readName(buf, 50);
++        long offset = buf.readUnsignedInt();
++        long length = buf.readUnsignedInt();
++        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress);
++        if (deviceSession == null || length > buf.readableBytes()) {
++            return;
++        }
++        String label = extractLabel(name);
++        File file = resolve(deviceSession, label != null ? label : lastLabel, name);
++        if (file == null) {
++            return;
++        }
++        try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {
++            output.seek(offset);
++            byte[] data = new byte[(int) length];
++            buf.readBytes(data);
++            output.write(data);
++        } catch (IOException e) {
++            LOGGER.warn("Alarm attachment write error", e);
++        }
++    }
++
++}
 diff --git a/src/main/java/org/traccar/protocol/Jt808Protocol.java b/src/main/java/org/traccar/protocol/Jt808Protocol.java
 index 4f375d9..a400d12 100644
 --- a/src/main/java/org/traccar/protocol/Jt808Protocol.java
@@ -1013,7 +1808,7 @@ index 4f375d9..a400d12 100644
              @Override
              protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
 diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
-index d739c04..9d246de 100644
+index d739c04..d2cc44e 100644
 --- a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 +++ b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 @@ -17,8 +17,11 @@ package org.traccar.protocol;
@@ -1037,7 +1832,15 @@ index d739c04..9d246de 100644
  import org.traccar.model.CellTower;
  import org.traccar.model.Network;
  import org.traccar.model.Position;
-@@ -95,6 +100,10 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -63,6 +68,7 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+ 
+     public static final int MSG_TERMINAL_GENERAL_RESPONSE = 0x0001;
+     public static final int MSG_GENERAL_RESPONSE = 0x8001;
++    public static final int MSG_ALARM_ATTACHMENT_UPLOAD = 0x9208;
+     public static final int MSG_GENERAL_RESPONSE_2 = 0x4401;
+     public static final int MSG_HEARTBEAT = 0x0002;
+     public static final int MSG_TERMINAL_LOGOUT = 0x0003;
+@@ -95,6 +101,10 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
      public static final int MSG_DRIVER_IDENTITY = 0x0702;
      public static final int MSG_VIDEO_REQUEST = 0x9101;
      public static final int MSG_VIDEO_CONTROL = 0x9102;
@@ -1048,7 +1851,7 @@ index d739c04..9d246de 100644
      public static final int MSG_PARAMETER_QUERY_RESPONSE = 0x0104;
      public static final int MSG_PARAMETER_QUERY_ALL = 0x8104;
      public static final int MSG_LOCATION_QUERY = 0x8201;
-@@ -112,6 +121,47 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -112,6 +122,47 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
      private int delimiter = 0x7e;
      private Integer protocolVersion;
  
@@ -1096,7 +1899,51 @@ index d739c04..9d246de 100644
      public Integer getProtocolVersion() {
          return protocolVersion;
      }
-@@ -440,6 +490,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -168,10 +219,43 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+         }
+     }
+ 
++    /**
++     * JT/T 1078 alarm attachment upload command (0x9208): the device uploads the photos and clips of the alarm to the
++     * attachment server (jt808attachment protocol port).
++     */
++    private void requestAlarmAttachments(
++            Channel channel, SocketAddress remoteAddress, ByteBuf id, Position position, String host) {
++        String label = position.getString("alarmLabel");
++        if (label == null || label.length() != 32) {
++            return;
++        }
++        int attachments = Integer.parseInt(label.substring(28, 30), 16); // number of attachments
++        int port = getConfig().getInteger(
++                Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(Jt808AttachmentProtocol.class)));
++        if (attachments == 0 || port <= 0) {
++            return;
++        }
++        ByteBuf data = Unpooled.buffer();
++        data.writeByte(host.length());
++        data.writeCharSequence(host, StandardCharsets.US_ASCII);
++        data.writeShort(port); // TCP port
++        data.writeShort(0); // UDP port
++        data.writeBytes(DataConverter.parseHex(label)); // alarm identification number
++        data.writeCharSequence(label, StandardCharsets.US_ASCII); // alarm number assigned by the platform (32 bytes)
++        data.writeZero(16); // reserved
++        channel.writeAndFlush(new NetworkMessage(
++                formatMessage(MSG_ALARM_ATTACHMENT_UPLOAD, id, false, data), remoteAddress));
++    }
++
+     private void requestAttachments(Channel channel, SocketAddress remoteAddress, ByteBuf id, Position position) {
+         if (channel == null || position == null || !position.hasAttribute("alarmLabel")) {
+             return;
+         }
++        String attachmentHost = getConfig().getString(Keys.JT808_ATTACHMENT_HOST);
++        if (attachmentHost != null && !attachmentHost.isEmpty()) {
++            requestAlarmAttachments(channel, remoteAddress, id, position, attachmentHost);
++            return;
++        }
+         String webUrl = getConfig().getString(Keys.WEB_URL);
+         int uploadPort = getConfig().getInteger(
+                 Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(JimiPhotoProtocol.class)));
+@@ -440,6 +524,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                  return position;
              }
  
@@ -1109,7 +1956,7 @@ index d739c04..9d246de 100644
          } else if (type == MSG_TERMINAL_AUTH || type == MSG_HEARTBEAT_2
                  || type == MSG_PHOTO || type == MSG_TERMINAL_LOGOUT || type == MSG_TIMEZONE_SYNC) {
  
-@@ -893,15 +949,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -893,15 +983,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                  case 0x65:
                      buf.readUnsignedInt(); // alarm serial number
                      buf.readUnsignedByte(); // alarm status
@@ -1167,7 +2014,7 @@ index d739c04..9d246de 100644
                      break;
                  case 0x70:
                      buf.readUnsignedInt(); // alarm serial number
-@@ -1961,4 +2056,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -1961,4 +2090,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
          return null;
      }
  

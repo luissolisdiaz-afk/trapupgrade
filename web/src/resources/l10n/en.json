@@ -716,6 +716,8 @@
     "alarmBlindSpotRear": "Blind Spot Rear",
     "alarmBlindSpotLeft": "Blind Spot Left",
     "alarmBlindSpotRight": "Blind Spot Right",
+    "eventAttachments": "Alarm photos and clips",
+    "eventAttachmentsEmpty": "No files for this alarm yet. The camera uploads them a few seconds or minutes after the event.",
     "alarmFatigueDriving": "Driver Fatigue",
     "alarmPowerCut": "Power Cut",
     "alarmPowerRestored": "Power Restored",

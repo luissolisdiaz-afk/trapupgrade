@@ -80,6 +80,10 @@ public abstract class BaseProtocolDecoder extends ExtendedObjectDecoder {
         this.statisticsManager = statisticsManager;
     }
 
+    public MediaManager getMediaManager() {
+        return mediaManager;
+    }
+
     @Inject
     public void setMediaManager(MediaManager mediaManager) {
         this.mediaManager = mediaManager;

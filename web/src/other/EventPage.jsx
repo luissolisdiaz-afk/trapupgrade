@@ -14,6 +14,8 @@ import { formatNotificationTitle } from '../common/util/formatter';
 import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import AlarmAttachments from '../common/components/AlarmAttachments';
+import useFeatures from '../common/util/useFeatures';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -35,6 +37,7 @@ const EventPage = () => {
   const t = useTranslation();
 
   const { id } = useParams();
+  const features = useFeatures();
 
   const [event, setEvent] = useState();
   const [position, setPosition] = useState();
@@ -101,6 +104,9 @@ const EventPage = () => {
         </MapView>
         <MapScale />
         {position && <MapCamera latitude={position.latitude} longitude={position.longitude} />}
+        {!features.disableCameras && position?.attributes?.alarmLabel && (
+          <AlarmAttachments deviceId={position.deviceId} label={position.attributes.alarmLabel} />
+        )}
         {position && showCard && (
           <StatusCard
             deviceId={position.deviceId}

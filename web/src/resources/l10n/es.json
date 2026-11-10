@@ -716,6 +716,8 @@
     "alarmBlindSpotRear": "Punto ciego trasero",
     "alarmBlindSpotLeft": "Punto ciego izquierdo",
     "alarmBlindSpotRight": "Punto ciego derecho",
+    "eventAttachments": "Fotos y clips de la alarma",
+    "eventAttachmentsEmpty": "Aún no hay archivos de esta alarma. La cámara los envía unos segundos o minutos después del evento.",
     "alarmFatigueDriving": "Fatiga del conductor",
     "alarmPowerCut": "Alimentación desconectada",
     "alarmPowerRestored": "Alimentación restablecida",

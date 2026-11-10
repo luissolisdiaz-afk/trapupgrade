@@ -2257,6 +2257,15 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Public host name or IP address that JT808 devices (dashcams) use to upload alarm attachments (photos and video
+     * clips). Devices connect to this host on the port of the jt808attachment protocol. If not set, the server does not
+     * request attachments with the JT/T 1078 attachment upload command.
+     */
+    public static final ConfigKey<String> JT808_ATTACHMENT_HOST = new StringConfigKey(
+            "jt808.attachmentHost",
+            List.of(KeyType.CONFIG));
+
+    /**
      * Public URL for the web app. Used for notifications, report links, and OpenID Connect.
      * Its path also sets the HTML base path when hosted behind a reverse proxy.
      * If not provided, Traccar will attempt to get a URL from the server IP address, but it might be a local address.

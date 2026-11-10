@@ -123,6 +123,7 @@ import org.traccar.protocol.ItsProtocol;
 import org.traccar.protocol.Ivt401Protocol;
 import org.traccar.protocol.JidoProtocol;
 import org.traccar.protocol.JimiPhotoProtocol;
+import org.traccar.protocol.Jt808AttachmentProtocol;
 import org.traccar.protocol.JmakProtocol;
 import org.traccar.protocol.JpKorjarProtocol;
 import org.traccar.protocol.Jt1078Protocol;
@@ -571,6 +572,7 @@ public final class ProtocolConfig {
         put(R16hProtocol.class, 5266);
         put(JimiPhotoProtocol.class, 5267);
         put(TeltonikaIridiumProtocol.class, 5268);
+        put(Jt808AttachmentProtocol.class, 5269);
     }
 
     public static Map<String, Class<? extends BaseProtocol>> getProtocolClasses() {
