@@ -18,7 +18,7 @@ export const SOURCES = {
     groupBys: ['device', 'day', 'none'],
     metrics: {
       maxSpeed: { label: 'builderMaxSpeed', unit: 'km/h', agg: 'max', value: (r) => (r.maxSpeed || 0) * 1.852 },
-      averageSpeed: { label: 'builderAverageSpeed', unit: 'km/h', agg: 'max', value: (r) => (r.averageSpeed || 0) * 1.852 },
+      averageSpeed: { label: 'builderAverageSpeed', unit: 'km/h', agg: 'avg', value: (r) => (r.averageSpeed || 0) * 1.852 },
       distance: { label: 'builderDistance', unit: 'km', agg: 'sum', value: (r) => (r.distance || 0) / 1000 },
       engineHours: { label: 'builderEngineHours', unit: 'h', agg: 'sum', value: (r) => (r.engineHours || 0) / 3600000 },
     },
@@ -62,10 +62,14 @@ export const aggregate = (rows, widget, deviceName) => {
       else if (widget.groupBy === 'type') key = r.type;
       const value = metric.value(r);
       const current = map.get(key);
-      if (current === undefined) map.set(key, value);
-      else map.set(key, metric.agg === 'max' ? Math.max(current, value) : current + value);
+      if (current === undefined) map.set(key, { value, count: 1 });
+      else if (metric.agg === 'max') map.set(key, { value: Math.max(current.value, value), count: 1 });
+      else map.set(key, { value: current.value + value, count: current.count + 1 });
     });
-  const result = [...map].map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
+  const result = [...map].map(([name, { value, count }]) => ({
+    name,
+    value: Math.round((metric.agg === 'avg' ? value / count : value) * 100) / 100,
+  }));
   result.sort(
     widget.groupBy === 'day' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.value - a.value,
   );

@@ -2113,10 +2113,40 @@ index ea248e9..3b60942 100644
                      data.writeByte(command.getInteger(Command.KEY_INDEX, 1));
                      data.writeByte(0); // close audio/video transmission
 diff --git a/src/main/java/org/traccar/reports/SummaryReportProvider.java b/src/main/java/org/traccar/reports/SummaryReportProvider.java
-index ae0de10..af81e74 100644
+index ae0de10..3565b9e 100644
 --- a/src/main/java/org/traccar/reports/SummaryReportProvider.java
 +++ b/src/main/java/org/traccar/reports/SummaryReportProvider.java
-@@ -129,18 +129,27 @@ public class SummaryReportProvider {
+@@ -74,6 +74,8 @@ public class SummaryReportProvider {
+ 
+         Position first = null;
+         Position last = null;
++        double speedSum = 0;
++        long speedCount = 0;
+         if (fast) {
+             first = PositionUtil.getEdgePosition(storage, device.getId(), from, to, false);
+             last = PositionUtil.getEdgePosition(storage, device.getId(), from, to, true);
+@@ -87,6 +89,8 @@ public class SummaryReportProvider {
+                     if (position.getSpeed() > result.getMaxSpeed()) {
+                         result.setMaxSpeed(position.getSpeed());
+                     }
++                    speedSum += position.getSpeed();
++                    speedCount++;
+                     last = position;
+                 }
+             }
+@@ -109,6 +113,11 @@ public class SummaryReportProvider {
+                 }
+             }
+ 
++            if (result.getAverageSpeed() == 0 && speedCount > 0) {
++                // devices without engine hours: average of the reported speeds (stopped time included)
++                result.setAverageSpeed(speedSum / speedCount);
++            }
++
+             if (!ignoreOdometer
+                     && first.getDouble(Position.KEY_ODOMETER) != 0 && last.getDouble(Position.KEY_ODOMETER) != 0) {
+                 result.setStartOdometer(first.getDouble(Position.KEY_ODOMETER));
+@@ -129,18 +138,27 @@ public class SummaryReportProvider {
      private Collection<SummaryReportItem> calculateDeviceResults(
              Device device, ZonedDateTime from, ZonedDateTime to, boolean daily) throws StorageException {
  

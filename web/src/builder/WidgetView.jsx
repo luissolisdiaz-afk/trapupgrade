@@ -62,8 +62,12 @@ const metricIcon = (widget) => {
   return widget.source === 'overspeed' ? <SpeedIcon /> : <NotificationsIcon />;
 };
 
-const total = (rows, metric) =>
-  rows.reduce((acc, r) => (metric === 'maxSpeed' ? Math.max(acc, r.value) : acc + r.value), 0);
+const total = (rows, metric) => {
+  if (metric === 'averageSpeed') {
+    return rows.length ? rows.reduce((acc, r) => acc + r.value, 0) / rows.length : 0;
+  }
+  return rows.reduce((acc, r) => (metric === 'maxSpeed' ? Math.max(acc, r.value) : acc + r.value), 0);
+};
 
 const format = (value, digits = 1) =>
   value.toLocaleString(undefined, { maximumFractionDigits: digits });

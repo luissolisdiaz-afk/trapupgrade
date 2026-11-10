@@ -74,6 +74,8 @@ public class SummaryReportProvider {
 
         Position first = null;
         Position last = null;
+        double speedSum = 0;
+        long speedCount = 0;
         if (fast) {
             first = PositionUtil.getEdgePosition(storage, device.getId(), from, to, false);
             last = PositionUtil.getEdgePosition(storage, device.getId(), from, to, true);
@@ -87,6 +89,8 @@ public class SummaryReportProvider {
                     if (position.getSpeed() > result.getMaxSpeed()) {
                         result.setMaxSpeed(position.getSpeed());
                     }
+                    speedSum += position.getSpeed();
+                    speedCount++;
                     last = position;
                 }
             }
@@ -107,6 +111,11 @@ public class SummaryReportProvider {
                 if (engineHours > 0) {
                     result.setAverageSpeed(UnitsConverter.knotsFromMps(result.getDistance() * 1000 / engineHours));
                 }
+            }
+
+            if (result.getAverageSpeed() == 0 && speedCount > 0) {
+                // devices without engine hours: average of the reported speeds (stopped time included)
+                result.setAverageSpeed(speedSum / speedCount);
             }
 
             if (!ignoreOdometer
