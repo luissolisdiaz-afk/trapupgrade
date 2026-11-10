@@ -44,8 +44,11 @@ public class CommandSenderManager {
     public CommandSender getSender(Device device) {
         String senderType = device.getString(Keys.COMMAND_SENDER.getKey());
         if (senderType != null) {
-            if (!"findHub".equals(senderType) || config.getBoolean(Keys.COMMAND_FIND_HUB_ENABLE)) {
-                return injector.getInstance(SENDERS_ALL.get(senderType));
+            // an unknown value in the device attribute is ignored, the standard protocol commands are used
+            var senderClass = SENDERS_ALL.get(senderType);
+            if (senderClass != null
+                    && (!"findHub".equals(senderType) || config.getBoolean(Keys.COMMAND_FIND_HUB_ENABLE))) {
+                return injector.getInstance(senderClass);
             }
         } else if (device.hasAttribute("notificationTokens")) {
             if (config.hasKey(Keys.COMMAND_CLIENT_SERVICE_ACCOUNT)) {
