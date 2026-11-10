@@ -302,6 +302,8 @@
     "linkLiveVideo": "Video en directo",
     "builderTitle": "Constructor de informes",
     "dashboardTitle": "Dashboard",
+    "userCameras": "Cámaras (dashcam)",
+    "userDashboard": "Dashboard (cuentas empresa)",
     "attributeUiDisableCameras": "Deshabilitar cámaras (dashcam)",
     "alertsManagement": "Gestión de alertas",
     "alertsRules": "Reglas de alerta",

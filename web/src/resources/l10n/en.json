@@ -302,6 +302,8 @@
     "linkLiveVideo": "Live Video",
     "builderTitle": "Report Builder",
     "dashboardTitle": "Dashboard",
+    "userCameras": "Cameras (dashcam)",
+    "userDashboard": "Dashboard (business accounts)",
     "attributeUiDisableCameras": "Disable cameras (dashcam)",
     "alertsManagement": "Alert management",
     "alertsRules": "Alert rules",

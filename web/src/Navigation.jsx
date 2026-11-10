@@ -68,6 +68,7 @@ const StreamPage = lazy(() => import('./other/StreamPage'));
 const RecordingsPage = lazy(() => import('./other/RecordingsPage'));
 const ReportBuilderPage = lazy(() => import('./builder/ReportBuilderPage'));
 import CamerasGate from './cameras/CamerasGate';
+import DashboardGate from './dashboard/DashboardGate';
 const CamerasDashboardPage = lazy(() => import('./cameras/CamerasDashboardPage'));
 const CamerasSpeedingPage = lazy(() => import('./cameras/CamerasSpeedingPage'));
 const AuditPage = lazy(() => import('./reports/AuditPage'));
@@ -153,7 +154,14 @@ const Navigation = () => {
             }
           />
           <Route path="builder" element={<ReportBuilderPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route
+            path="dashboard"
+            element={
+              <DashboardGate>
+                <DashboardPage />
+              </DashboardGate>
+            }
+          />
           <Route
             path="cameras"
             element={

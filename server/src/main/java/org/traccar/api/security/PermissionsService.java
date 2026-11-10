@@ -177,6 +177,11 @@ public class PermissionsService {
         }
     }
 
+    /**
+     * User attributes that act as permissions and can only be changed by an administrator.
+     */
+    private static final String[] ADMIN_USER_ATTRIBUTES = {"ui.disableCameras", "ui.enableDashboard"};
+
     public void checkUserUpdate(long userId, User before, User after) throws StorageException, SecurityException {
         if (before.getAdministrator() != after.getAdministrator()
                 || before.getDeviceLimit() != after.getDeviceLimit()
@@ -206,6 +211,11 @@ public class PermissionsService {
         }
         if (before.getFixedEmail() && !before.getEmail().equals(after.getEmail())) {
             checkAdmin(userId);
+        }
+        for (String key : ADMIN_USER_ATTRIBUTES) {
+            if (before.getBoolean(key) != after.getBoolean(key)) {
+                checkAdmin(userId);
+            }
         }
     }
 

@@ -450,6 +450,36 @@ const UserPage = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
+                      checked={!item.attributes?.['ui.disableCameras']}
+                      onChange={(e) => {
+                        const attributes = { ...item.attributes };
+                        if (e.target.checked) delete attributes['ui.disableCameras'];
+                        else attributes['ui.disableCameras'] = true;
+                        setItem({ ...item, attributes });
+                      }}
+                    />
+                  }
+                  label={t('userCameras')}
+                  disabled={!admin}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={Boolean(item.attributes?.['ui.enableDashboard'])}
+                      onChange={(e) => {
+                        const attributes = { ...item.attributes };
+                        if (e.target.checked) attributes['ui.enableDashboard'] = true;
+                        else delete attributes['ui.enableDashboard'];
+                        setItem({ ...item, attributes });
+                      }}
+                    />
+                  }
+                  label={t('userDashboard')}
+                  disabled={!admin}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
                       checked={item.fixedEmail}
                       onChange={(e) => setItem({ ...item, fixedEmail: e.target.checked })}
                     />

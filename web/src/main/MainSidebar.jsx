@@ -157,7 +157,11 @@ const MainSidebar = () => {
       </div>
       <List className={classes.list}>
         {items
-          .filter((item) => !(item.key === 'cameras' && features.disableCameras))
+          .filter(
+            (item) =>
+              !(item.key === 'cameras' && features.disableCameras) &&
+              !(item.key === 'dashboard' && !features.dashboardEnabled),
+          )
           .map((item) => (
           <ListItemButton
             key={item.key}

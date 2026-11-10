@@ -31,6 +31,7 @@ const featureSelector = createSelector(
     const disableComputedAttributes = get(server, user, 'ui.disableComputedAttributes');
     const disableCalendars = get(server, user, 'ui.disableCalendars');
     const disableCameras = get(server, user, 'ui.disableCameras');
+    const dashboardEnabled = Boolean(user && (user.administrator || user.attributes['ui.enableDashboard']));
 
     return {
       disableStatusCard,
@@ -45,6 +46,7 @@ const featureSelector = createSelector(
       disableComputedAttributes,
       disableCalendars,
       disableCameras,
+      dashboardEnabled,
     };
   },
 );

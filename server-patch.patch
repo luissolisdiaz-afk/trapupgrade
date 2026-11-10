@@ -378,6 +378,34 @@ index 315205f..1cb037c 100644
          permissionsService.checkPermission(Device.class, getUserId(), deviceId);
          ByteBuf data = streamManager.getSegment(deviceId, channel, index);
          if (data == null) {
+diff --git a/src/main/java/org/traccar/api/security/PermissionsService.java b/src/main/java/org/traccar/api/security/PermissionsService.java
+index 17223ac..0661988 100644
+--- a/src/main/java/org/traccar/api/security/PermissionsService.java
++++ b/src/main/java/org/traccar/api/security/PermissionsService.java
+@@ -177,6 +177,11 @@ public class PermissionsService {
+         }
+     }
+ 
++    /**
++     * User attributes that act as permissions and can only be changed by an administrator.
++     */
++    private static final String[] ADMIN_USER_ATTRIBUTES = {"ui.disableCameras", "ui.enableDashboard"};
++
+     public void checkUserUpdate(long userId, User before, User after) throws StorageException, SecurityException {
+         if (before.getAdministrator() != after.getAdministrator()
+                 || before.getDeviceLimit() != after.getDeviceLimit()
+@@ -207,6 +212,11 @@ public class PermissionsService {
+         if (before.getFixedEmail() && !before.getEmail().equals(after.getEmail())) {
+             checkAdmin(userId);
+         }
++        for (String key : ADMIN_USER_ATTRIBUTES) {
++            if (before.getBoolean(key) != after.getBoolean(key)) {
++                checkAdmin(userId);
++            }
++        }
+     }
+ 
+     public <T extends BaseModel> void checkPermission(
 diff --git a/src/main/java/org/traccar/config/Keys.java b/src/main/java/org/traccar/config/Keys.java
 index 6aaa944..00a0bf7 100644
 --- a/src/main/java/org/traccar/config/Keys.java
