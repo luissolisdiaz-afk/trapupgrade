@@ -45,6 +45,7 @@ public class VideoStreamResource extends BaseResource {
             @PathParam("deviceId") long deviceId,
             @PathParam("channel") int channel) throws StorageException {
 
+        checkCamerasEnabled();
         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
         return Response.ok(streamManager.getPlaylist(deviceId, channel), "application/vnd.apple.mpegurl").build();
     }
@@ -56,6 +57,7 @@ public class VideoStreamResource extends BaseResource {
             @PathParam("channel") int channel,
             @PathParam("index") int index) throws StorageException {
 
+        checkCamerasEnabled();
         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
         ByteBuf data = streamManager.getSegment(deviceId, channel, index);
         if (data == null) {

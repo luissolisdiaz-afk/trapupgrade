@@ -302,6 +302,7 @@
     "linkLiveVideo": "Live Video",
     "builderTitle": "Report Builder",
     "dashboardTitle": "Dashboard",
+    "attributeUiDisableCameras": "Disable cameras (dashcam)",
     "alertsManagement": "Alert management",
     "alertsRules": "Alert rules",
     "alertsTemplates": "Message templates",

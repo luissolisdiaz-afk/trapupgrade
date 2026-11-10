@@ -16,9 +16,9 @@ const MenuItem = ({ title, link, icon, selected, nested }) => {
       component={Link}
       to={link}
       selected={selected}
-      sx={nested ? { pl: 4 } : undefined}
+      sx={nested ? { pl: 9 } : undefined}
     >
-      <ListItemIcon>{icon}</ListItemIcon>
+      {icon && <ListItemIcon>{icon}</ListItemIcon>}
       <ListItemText primary={title} className={classes.menuItemText} />
     </ListItemButton>
   );

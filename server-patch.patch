@@ -37,6 +37,85 @@ index 524430e..6eccebb 100644
          }
          return null;
      }
+diff --git a/src/main/java/org/traccar/api/BaseResource.java b/src/main/java/org/traccar/api/BaseResource.java
+index 5026acf..0dadbf9 100644
+--- a/src/main/java/org/traccar/api/BaseResource.java
++++ b/src/main/java/org/traccar/api/BaseResource.java
+@@ -17,7 +17,10 @@ package org.traccar.api;
+ 
+ import org.traccar.api.security.PermissionsService;
+ import org.traccar.api.security.UserPrincipal;
++import org.traccar.model.Server;
++import org.traccar.model.User;
+ import org.traccar.storage.Storage;
++import org.traccar.storage.StorageException;
+ 
+ import jakarta.inject.Inject;
+ import jakarta.ws.rs.core.Context;
+@@ -34,6 +37,19 @@ public class BaseResource {
+     @Inject
+     protected PermissionsService permissionsService;
+ 
++    /**
++     * Users (or the whole server) can have the dashcam features disabled with the ui.disableCameras attribute.
++     */
++    protected void checkCamerasEnabled() throws StorageException {
++        User user = permissionsService.getUser(getUserId());
++        if (!user.getAdministrator()) {
++            Server server = permissionsService.getServer();
++            if (user.getBoolean("ui.disableCameras") || server.getBoolean("ui.disableCameras")) {
++                throw new SecurityException("Cameras are disabled");
++            }
++        }
++    }
++
+     protected UserPrincipal getUserPrincipal() {
+         return (UserPrincipal) securityContext.getUserPrincipal();
+     }
+diff --git a/src/main/java/org/traccar/api/resource/DeviceResource.java b/src/main/java/org/traccar/api/resource/DeviceResource.java
+index 8aedc0b..73bdd31 100644
+--- a/src/main/java/org/traccar/api/resource/DeviceResource.java
++++ b/src/main/java/org/traccar/api/resource/DeviceResource.java
+@@ -16,6 +16,8 @@
+ package org.traccar.api.resource;
+ 
+ import org.traccar.api.BaseObjectResource;
++import org.traccar.config.Config;
++import org.traccar.config.Keys;
+ import org.traccar.database.MediaManager;
+ import org.traccar.helper.LogAction;
+ import org.traccar.model.Device;
+@@ -74,9 +76,30 @@ public class DeviceResource extends BaseObjectResource<Device> {
+     @Inject
+     private LogAction actionLogger;
+ 
++    @Inject
++    private Config config;
++
+     @Context
+     private HttpServletRequest request;
+ 
++    private void checkAdminOnly() throws StorageException {
++        if (config.getBoolean(Keys.DEVICE_ADMIN_ONLY) && !permissionsService.getUser(getUserId()).getAdministrator()) {
++            throw new SecurityException("Only administrators can add or delete devices");
++        }
++    }
++
++    @Override
++    public Response add(Device entity) throws Exception {
++        checkAdminOnly();
++        return super.add(entity);
++    }
++
++    @Override
++    public Response remove(long id) throws Exception {
++        checkAdminOnly();
++        return super.remove(id);
++    }
++
+     public DeviceResource() {
+         super(Device.class);
+     }
 diff --git a/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
 new file mode 100644
 index 0000000..8d5fb56
@@ -134,10 +213,10 @@ index 0000000..8d5fb56
 +}
 diff --git a/src/main/java/org/traccar/api/resource/RecordingResource.java b/src/main/java/org/traccar/api/resource/RecordingResource.java
 new file mode 100644
-index 0000000..5e24ed3
+index 0000000..b964756
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/RecordingResource.java
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,141 @@
 +/*
 + * Copyright 2026 Anton Tananaev (anton@traccar.org)
 + *
@@ -202,6 +281,7 @@ index 0000000..5e24ed3
 +
 +    private Command createCommand(
 +            String type, long deviceId, int channel, Date from, Date to) throws StorageException {
++        checkCamerasEnabled();
 +        permissionsService.checkPermission(Device.class, getUserId(), deviceId);
 +        if (channel < 1 || channel > 255) {
 +            throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
@@ -278,8 +358,28 @@ index 0000000..5e24ed3
 +    }
 +
 +}
+diff --git a/src/main/java/org/traccar/api/resource/VideoStreamResource.java b/src/main/java/org/traccar/api/resource/VideoStreamResource.java
+index 315205f..1cb037c 100644
+--- a/src/main/java/org/traccar/api/resource/VideoStreamResource.java
++++ b/src/main/java/org/traccar/api/resource/VideoStreamResource.java
+@@ -45,6 +45,7 @@ public class VideoStreamResource extends BaseResource {
+             @PathParam("deviceId") long deviceId,
+             @PathParam("channel") int channel) throws StorageException {
+ 
++        checkCamerasEnabled();
+         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
+         return Response.ok(streamManager.getPlaylist(deviceId, channel), "application/vnd.apple.mpegurl").build();
+     }
+@@ -56,6 +57,7 @@ public class VideoStreamResource extends BaseResource {
+             @PathParam("channel") int channel,
+             @PathParam("index") int index) throws StorageException {
+ 
++        checkCamerasEnabled();
+         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
+         ByteBuf data = streamManager.getSegment(deviceId, channel, index);
+         if (data == null) {
 diff --git a/src/main/java/org/traccar/config/Keys.java b/src/main/java/org/traccar/config/Keys.java
-index 6aaa944..6d80c3c 100644
+index 6aaa944..00a0bf7 100644
 --- a/src/main/java/org/traccar/config/Keys.java
 +++ b/src/main/java/org/traccar/config/Keys.java
 @@ -427,6 +427,23 @@ public final class Keys {
@@ -306,7 +406,7 @@ index 6aaa944..6d80c3c 100644
      /**
       * Distance in meters at which a linked device entering this range triggers a proximity enter event. 0 to disable.
       */
-@@ -2157,6 +2174,14 @@ public final class Keys {
+@@ -2157,6 +2174,23 @@ public final class Keys {
              List.of(KeyType.CONFIG),
              100);
  
@@ -317,6 +417,15 @@ index 6aaa944..6d80c3c 100644
 +            "speedLimit.cacheTtl",
 +            List.of(KeyType.CONFIG),
 +            3600);
++
++    /**
++     * Only administrators can add or delete devices. Other users can still edit the devices they have access to.
++     * Default value is true.
++     */
++    public static final ConfigKey<Boolean> DEVICE_ADMIN_ONLY = new BooleanConfigKey(
++            "device.adminOnly",
++            List.of(KeyType.CONFIG),
++            true);
 +
      /**
       * Override latitude sign / hemisphere. Useful in cases where value is incorrect because of device bug. Value can be

@@ -67,6 +67,7 @@ const EmulatorPage = lazy(() => import('./other/EmulatorPage'));
 const StreamPage = lazy(() => import('./other/StreamPage'));
 const RecordingsPage = lazy(() => import('./other/RecordingsPage'));
 const ReportBuilderPage = lazy(() => import('./builder/ReportBuilderPage'));
+import CamerasGate from './cameras/CamerasGate';
 const CamerasDashboardPage = lazy(() => import('./cameras/CamerasDashboardPage'));
 const CamerasSpeedingPage = lazy(() => import('./cameras/CamerasSpeedingPage'));
 const AuditPage = lazy(() => import('./reports/AuditPage'));
@@ -143,12 +144,40 @@ const Navigation = () => {
           <Route path="replay" element={<ReplayPage />} />
           <Route path="geofences" element={<GeofencesPage />} />
           <Route path="emulator" element={<EmulatorPage />} />
-          <Route path="stream" element={<StreamPage />} />
+          <Route
+            path="stream"
+            element={
+              <CamerasGate>
+                <StreamPage />
+              </CamerasGate>
+            }
+          />
           <Route path="builder" element={<ReportBuilderPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="cameras" element={<CamerasDashboardPage />} />
-          <Route path="cameras/recordings" element={<RecordingsPage />} />
-          <Route path="cameras/speeding" element={<CamerasSpeedingPage />} />
+          <Route
+            path="cameras"
+            element={
+              <CamerasGate>
+                <CamerasDashboardPage />
+              </CamerasGate>
+            }
+          />
+          <Route
+            path="cameras/recordings"
+            element={
+              <CamerasGate>
+                <RecordingsPage />
+              </CamerasGate>
+            }
+          />
+          <Route
+            path="cameras/speeding"
+            element={
+              <CamerasGate>
+                <CamerasSpeedingPage />
+              </CamerasGate>
+            }
+          />
 
           <Route path="settings">
             <Route path=":type/:id/share" element={<SharePage />} />

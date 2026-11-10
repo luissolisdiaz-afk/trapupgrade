@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Collapse, Divider, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import TuneIcon from '@mui/icons-material/Tune';
 import DrawIcon from '@mui/icons-material/Draw';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -70,7 +69,6 @@ const SettingsMenu = () => {
                   nested
                   title={t('alertsRules')}
                   link="/settings/notifications"
-                  icon={<SubdirectoryArrowRightIcon />}
                   selected={
                     location.pathname === '/settings/notifications' ||
                     location.pathname.startsWith('/settings/notification/')
@@ -80,7 +78,6 @@ const SettingsMenu = () => {
                   nested
                   title={t('alertsTemplates')}
                   link="/settings/notification-texts"
-                  icon={<SubdirectoryArrowRightIcon />}
                   selected={location.pathname === '/settings/notification-texts'}
                 />
               </List>

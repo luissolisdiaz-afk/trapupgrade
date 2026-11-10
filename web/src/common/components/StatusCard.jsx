@@ -43,6 +43,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import BoltIcon from '@mui/icons-material/Bolt';
 
+import useFeatures from '../util/useFeatures';
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
@@ -187,6 +188,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const t = useTranslation();
+  const features = useFeatures();
 
   const readonly = useRestriction('readonly');
   const deviceReadonly = useDeviceReadonly();
@@ -438,18 +440,22 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
           >
             {t('commandTitle')}
           </MenuItem>
-          <MenuItem
-            onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
-            disabled={position.protocol !== 'jt808'}
-          >
-            {t('linkLiveVideo')}
-          </MenuItem>
-          <MenuItem
-            onClick={() => navigate(`/cameras/recordings?deviceId=${deviceId}`)}
-            disabled={position.protocol !== 'jt808'}
-          >
-            {t('linkRecordings')}
-          </MenuItem>
+          {!features.disableCameras && (
+            <MenuItem
+              onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
+              disabled={position.protocol !== 'jt808'}
+            >
+              {t('linkLiveVideo')}
+            </MenuItem>
+          )}
+          {!features.disableCameras && (
+            <MenuItem
+              onClick={() => navigate(`/cameras/recordings?deviceId=${deviceId}`)}
+              disabled={position.protocol !== 'jt808'}
+            >
+              {t('linkRecordings')}
+            </MenuItem>
+          )}
           {!readonly && <MenuItem onClick={handleGeofence}>{t('sharedCreateGeofence')}</MenuItem>}
           <MenuItem
             component="a"

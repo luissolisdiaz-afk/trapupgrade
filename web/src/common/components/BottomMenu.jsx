@@ -19,6 +19,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 
 import { sessionActions } from '../../store';
+import useFeatures from '../util/useFeatures';
 import { useTranslation } from './LocalizationProvider';
 import { useRestriction } from '../util/permissions';
 import { nativePostMessage } from './NativeInterface';
@@ -30,6 +31,7 @@ const BottomMenu = () => {
   const t = useTranslation();
 
   const readonly = useRestriction('readonly');
+  const features = useFeatures();
   const disableReports = useRestriction('disableReports');
   const devices = useSelector((state) => state.devices.items);
   const user = useSelector((state) => state.session.user);
@@ -151,7 +153,13 @@ const BottomMenu = () => {
             value="reports"
           />
         )}
-        <BottomNavigationAction label={t('cameraTitle')} icon={<VideocamIcon />} value="cameras" />
+        {!features.disableCameras && (
+          <BottomNavigationAction
+            label={t('cameraTitle')}
+            icon={<VideocamIcon />}
+            value="cameras"
+          />
+        )}
         {!readonly && (
           <BottomNavigationAction
             label={t('settingsTitle')}

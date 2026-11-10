@@ -95,6 +95,10 @@ export default (t) =>
         name: t('attributeNotificationTokens'),
         type: 'string',
       },
+      'ui.disableCameras': {
+        name: t('attributeUiDisableCameras'),
+        type: 'boolean',
+      },
       'ui.disableStatusCard': {
         name: t('attributeUiDisableStatusCard'),
         type: 'boolean',

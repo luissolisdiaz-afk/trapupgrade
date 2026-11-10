@@ -26,7 +26,7 @@ import DnsIcon from '@mui/icons-material/Dns';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import { useDeviceReadonly } from '../common/util/permissions';
+import { useAdministrator, useDeviceReadonly } from '../common/util/permissions';
 import DeviceRow from './DeviceRow';
 
 const useStyles = makeStyles()((theme) => ({
@@ -62,6 +62,7 @@ const MainToolbar = ({
   const t = useTranslation();
 
   const deviceReadonly = useDeviceReadonly();
+  const administrator = useAdministrator();
 
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
@@ -212,15 +213,17 @@ const MainToolbar = ({
           </FormGroup>
         </div>
       </Popover>
-      <IconButton edge="end" onClick={() => navigate('/settings/device')} disabled={deviceReadonly}>
-        <Tooltip
-          open={!deviceReadonly && devicesLoaded && Object.keys(devices).length === 0}
-          title={t('deviceRegisterFirst')}
-          arrow
-        >
-          <AddIcon />
-        </Tooltip>
-      </IconButton>
+      {administrator && (
+        <IconButton edge="end" onClick={() => navigate('/settings/device')} disabled={deviceReadonly}>
+          <Tooltip
+            open={!deviceReadonly && devicesLoaded && Object.keys(devices).length === 0}
+            title={t('deviceRegisterFirst')}
+            arrow
+          >
+            <AddIcon />
+          </Tooltip>
+        </IconButton>
+      )}
     </Toolbar>
   );
 };

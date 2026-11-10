@@ -23,7 +23,7 @@ import CollectionActions from './components/CollectionActions';
 import TableShimmer from '../common/components/TableShimmer';
 import SearchHeader from './components/SearchHeader';
 import { formatAddress, formatStatus, formatTime } from '../common/util/formatter';
-import { useDeviceReadonly, useManager } from '../common/util/permissions';
+import { useAdministrator, useDeviceReadonly, useManager } from '../common/util/permissions';
 import { usePreference } from '../common/util/preferences';
 import useSettingsStyles from './common/useSettingsStyles';
 import DeviceUsersValue from './components/DeviceUsersValue';
@@ -42,6 +42,7 @@ const DevicesPage = () => {
 
   const manager = useManager();
   const deviceReadonly = useDeviceReadonly();
+  const administrator = useAdministrator();
   const coordinateFormat = usePreference('coordinateFormat');
 
   const positions = useSelector((state) => state.session.positions);
@@ -154,6 +155,7 @@ const DevicesPage = () => {
                   onReload={reload}
                   customActions={[actionConnections]}
                   readonly={deviceReadonly}
+                  removable={administrator}
                 />
               </TableCell>
             </TableRow>
@@ -190,7 +192,7 @@ const DevicesPage = () => {
           </TableRow>
         </TableFooter>
       </Table>
-      <AddFab editPath="/settings/device" />
+      <AddFab editPath="/settings/device" disabled={!administrator} />
     </PageLayout>
   );
 };

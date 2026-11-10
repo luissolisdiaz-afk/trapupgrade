@@ -16,6 +16,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.BaseObjectResource;
+import org.traccar.config.Config;
+import org.traccar.config.Keys;
 import org.traccar.database.MediaManager;
 import org.traccar.helper.LogAction;
 import org.traccar.model.Device;
@@ -74,8 +76,29 @@ public class DeviceResource extends BaseObjectResource<Device> {
     @Inject
     private LogAction actionLogger;
 
+    @Inject
+    private Config config;
+
     @Context
     private HttpServletRequest request;
+
+    private void checkAdminOnly() throws StorageException {
+        if (config.getBoolean(Keys.DEVICE_ADMIN_ONLY) && !permissionsService.getUser(getUserId()).getAdministrator()) {
+            throw new SecurityException("Only administrators can add or delete devices");
+        }
+    }
+
+    @Override
+    public Response add(Device entity) throws Exception {
+        checkAdminOnly();
+        return super.add(entity);
+    }
+
+    @Override
+    public Response remove(long id) throws Exception {
+        checkAdminOnly();
+        return super.remove(id);
+    }
 
     public DeviceResource() {
         super(Device.class);

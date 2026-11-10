@@ -2183,6 +2183,15 @@ public final class Keys {
             3600);
 
     /**
+     * Only administrators can add or delete devices. Other users can still edit the devices they have access to.
+     * Default value is true.
+     */
+    public static final ConfigKey<Boolean> DEVICE_ADMIN_ONLY = new BooleanConfigKey(
+            "device.adminOnly",
+            List.of(KeyType.CONFIG),
+            true);
+
+    /**
      * Override latitude sign / hemisphere. Useful in cases where value is incorrect because of device bug. Value can be
      * N for North or S for South.
      */

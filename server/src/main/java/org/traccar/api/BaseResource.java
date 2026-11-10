@@ -17,7 +17,10 @@ package org.traccar.api;
 
 import org.traccar.api.security.PermissionsService;
 import org.traccar.api.security.UserPrincipal;
+import org.traccar.model.Server;
+import org.traccar.model.User;
 import org.traccar.storage.Storage;
+import org.traccar.storage.StorageException;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Context;
@@ -33,6 +36,19 @@ public class BaseResource {
 
     @Inject
     protected PermissionsService permissionsService;
+
+    /**
+     * Users (or the whole server) can have the dashcam features disabled with the ui.disableCameras attribute.
+     */
+    protected void checkCamerasEnabled() throws StorageException {
+        User user = permissionsService.getUser(getUserId());
+        if (!user.getAdministrator()) {
+            Server server = permissionsService.getServer();
+            if (user.getBoolean("ui.disableCameras") || server.getBoolean("ui.disableCameras")) {
+                throw new SecurityException("Cameras are disabled");
+            }
+        }
+    }
 
     protected UserPrincipal getUserPrincipal() {
         return (UserPrincipal) securityContext.getUserPrincipal();

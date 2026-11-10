@@ -10,6 +10,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import useFeatures from '../common/util/useFeatures';
 import { useTranslation } from '../common/components/LocalizationProvider';
 
 export const SIDEBAR_WIDTH = 208;
@@ -83,6 +84,7 @@ const MainSidebar = () => {
 
   const server = useSelector((state) => state.session.server);
   const socket = useSelector((state) => state.session.socket);
+  const features = useFeatures();
   const devices = useSelector((state) => state.devices.items);
   const selectedId = useSelector((state) => state.devices.selectedId);
 
@@ -154,7 +156,9 @@ const MainSidebar = () => {
         )}
       </div>
       <List className={classes.list}>
-        {items.map((item) => (
+        {items
+          .filter((item) => !(item.key === 'cameras' && features.disableCameras))
+          .map((item) => (
           <ListItemButton
             key={item.key}
             selected={item.match(location.pathname)}

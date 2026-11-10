@@ -62,6 +62,7 @@ public class RecordingResource extends BaseResource {
 
     private Command createCommand(
             String type, long deviceId, int channel, Date from, Date to) throws StorageException {
+        checkCamerasEnabled();
         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
         if (channel < 1 || channel > 255) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)

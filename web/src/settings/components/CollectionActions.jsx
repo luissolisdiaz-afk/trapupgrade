@@ -15,7 +15,15 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const CollectionActions = ({ itemId, editPath, endpoint, onReload, customActions, readonly }) => {
+const CollectionActions = ({
+  itemId,
+  editPath,
+  endpoint,
+  onReload,
+  customActions,
+  readonly,
+  removable = true,
+}) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const navigate = useNavigate();
@@ -65,7 +73,7 @@ const CollectionActions = ({ itemId, editPath, endpoint, onReload, customActions
             {!readonly && (
               <>
                 {editPath && <MenuItem onClick={handleEdit}>{t('sharedEdit')}</MenuItem>}
-                <MenuItem onClick={handleRemove}>{t('sharedRemove')}</MenuItem>
+                {removable && <MenuItem onClick={handleRemove}>{t('sharedRemove')}</MenuItem>}
               </>
             )}
           </Menu>
@@ -89,11 +97,13 @@ const CollectionActions = ({ itemId, editPath, endpoint, onReload, customActions
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title={t('sharedRemove')}>
-                <IconButton size="small" onClick={handleRemove}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+              {removable && (
+                <Tooltip title={t('sharedRemove')}>
+                  <IconButton size="small" onClick={handleRemove}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </>
           )}
         </div>
