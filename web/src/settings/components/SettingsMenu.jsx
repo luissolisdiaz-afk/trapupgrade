@@ -48,6 +48,16 @@ const SettingsMenu = () => {
   return (
     <>
       <List>
+        {!readonly && (
+          <>
+            <MenuItem
+              title={t('settingsUser')}
+              link={`/settings/user/${userId}`}
+              icon={<PersonIcon />}
+              selected={location.pathname === `/settings/user/${userId}`}
+            />
+          </>
+        )}
         <MenuItem
           title={t('sharedPreferences')}
           link="/settings/preferences"
@@ -56,6 +66,42 @@ const SettingsMenu = () => {
         />
         {!readonly && (
           <>
+            {!features.disableGroups && (
+              <MenuItem
+                title={t('settingsGroups')}
+                link="/settings/groups"
+                icon={<FolderIcon />}
+                selected={location.pathname.startsWith('/settings/group')}
+              />
+            )}
+            <MenuItem
+              title={t('deviceTitle')}
+              link="/settings/devices"
+              icon={<DnsIcon />}
+              selected={location.pathname.startsWith('/settings/device')}
+            />
+            {!features.disableDrivers && (
+              <MenuItem
+                title={t('sharedDrivers')}
+                link="/settings/drivers"
+                icon={<PersonIcon />}
+                selected={location.pathname.startsWith('/settings/driver')}
+              />
+            )}
+            <MenuItem
+              title={t('sharedGeofences')}
+              link="/geofences"
+              icon={<DrawIcon />}
+              selected={location.pathname.startsWith('/settings/geofence')}
+            />
+            {!features.disableCalendars && (
+              <MenuItem
+                title={t('sharedCalendars')}
+                link="/settings/calendars"
+                icon={<TodayIcon />}
+                selected={location.pathname.startsWith('/settings/calendar')}
+              />
+            )}
             <ListItemButton onClick={() => setAlertsOpen((open) => !open)} selected={inAlerts && !alertsOpen}>
               <ListItemIcon>
                 <NotificationsIcon />
@@ -82,56 +128,6 @@ const SettingsMenu = () => {
                 />
               </List>
             </Collapse>
-            <MenuItem
-              title={t('settingsUser')}
-              link={`/settings/user/${userId}`}
-              icon={<PersonIcon />}
-              selected={location.pathname === `/settings/user/${userId}`}
-            />
-            <MenuItem
-              title={t('deviceTitle')}
-              link="/settings/devices"
-              icon={<DnsIcon />}
-              selected={location.pathname.startsWith('/settings/device')}
-            />
-            <MenuItem
-              title={t('sharedGeofences')}
-              link="/geofences"
-              icon={<DrawIcon />}
-              selected={location.pathname.startsWith('/settings/geofence')}
-            />
-            {!features.disableGroups && (
-              <MenuItem
-                title={t('settingsGroups')}
-                link="/settings/groups"
-                icon={<FolderIcon />}
-                selected={location.pathname.startsWith('/settings/group')}
-              />
-            )}
-            {!features.disableDrivers && (
-              <MenuItem
-                title={t('sharedDrivers')}
-                link="/settings/drivers"
-                icon={<PersonIcon />}
-                selected={location.pathname.startsWith('/settings/driver')}
-              />
-            )}
-            {!features.disableCalendars && (
-              <MenuItem
-                title={t('sharedCalendars')}
-                link="/settings/calendars"
-                icon={<TodayIcon />}
-                selected={location.pathname.startsWith('/settings/calendar')}
-              />
-            )}
-            {!features.disableComputedAttributes && (
-              <MenuItem
-                title={t('sharedComputedAttributes')}
-                link="/settings/attributes"
-                icon={<CalculateIcon />}
-                selected={location.pathname.startsWith('/settings/attribute')}
-              />
-            )}
             {!features.disableMaintenance && (
               <MenuItem
                 title={t('sharedMaintenance')}
@@ -146,6 +142,14 @@ const SettingsMenu = () => {
                 link="/settings/commands"
                 icon={<SendIcon />}
                 selected={location.pathname.startsWith('/settings/command')}
+              />
+            )}
+            {!features.disableComputedAttributes && (
+              <MenuItem
+                title={t('sharedComputedAttributes')}
+                link="/settings/attributes"
+                icon={<CalculateIcon />}
+                selected={location.pathname.startsWith('/settings/attribute')}
               />
             )}
           </>

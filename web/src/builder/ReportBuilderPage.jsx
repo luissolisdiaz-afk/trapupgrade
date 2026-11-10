@@ -323,8 +323,8 @@ const ReportBuilderPage = ({ readOnly = false }) => {
             <TextField
               className={classes.field}
               size="small"
-              label="Regex"
-              placeholder="^Cami[oó]n"
+              label={t('builderFilterName')}
+              placeholder="Camión|Bus"
               value={filter.regex}
               onChange={(e) => setFilter({ ...filter, regex: e.target.value })}
               slotProps={icon(DirectionsCarIcon)}
