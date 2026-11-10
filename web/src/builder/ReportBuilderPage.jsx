@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -161,6 +162,7 @@ const ReportBuilderPage = ({ readOnly = false }) => {
   const fileRef = useRef(null);
 
   const groups = useSelector((state) => state.groups.items);
+  const devices = useSelector((state) => state.devices.items);
 
   const [widgets, setWidgets] = useState(() => (readOnly ? defaultWidgets : read('reportBuilderWidgets', defaultWidgets)));
   const [templates, setTemplates] = useState(() => (readOnly ? {} : read('reportBuilderTemplates', {})));
@@ -168,7 +170,7 @@ const ReportBuilderPage = ({ readOnly = false }) => {
     from: dayjs().subtract(7, 'day').startOf('day').format('YYYY-MM-DDTHH:mm'),
     to: dayjs().endOf('day').format('YYYY-MM-DDTHH:mm'),
     groupId: '',
-    regex: '',
+    deviceIds: [],
   });
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState(null);
@@ -309,25 +311,47 @@ const ReportBuilderPage = ({ readOnly = false }) => {
               size="small"
               label={t('reportGroup')}
               value={filter.groupId}
-              onChange={(e) => setFilter({ ...filter, groupId: e.target.value })}
+              onChange={(e) =>
+                setFilter({
+                  ...filter,
+                  groupId: e.target.value,
+                  deviceIds: filter.deviceIds.filter(
+                    (id) => !e.target.value || String(devices[id]?.groupId) === e.target.value,
+                  ),
+                })
+              }
               sx={{ minWidth: 190 }}
               slotProps={icon(GroupsIcon)}
             >
-              <MenuItem value="">{t('notificationAlways')}</MenuItem>
+              <MenuItem value="">{t('builderAllGroups')}</MenuItem>
               {Object.values(groups).map((g) => (
                 <MenuItem key={g.id} value={String(g.id)}>
                   {g.name}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              className={classes.field}
+            <Autocomplete
+              multiple
               size="small"
-              label={t('builderFilterName')}
-              placeholder="Camión|Bus"
-              value={filter.regex}
-              onChange={(e) => setFilter({ ...filter, regex: e.target.value })}
-              slotProps={icon(DirectionsCarIcon)}
+              limitTags={2}
+              disableCloseOnSelect
+              className={classes.field}
+              sx={{ minWidth: 260, maxWidth: 420 }}
+              options={Object.values(devices)
+                .filter((d) => !filter.groupId || String(d.groupId) === filter.groupId)
+                .sort((a, b) => a.name.localeCompare(b.name))}
+              getOptionLabel={(d) => d.name}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              value={filter.deviceIds.map((id) => devices[id]).filter(Boolean)}
+              onChange={(_, value) => setFilter({ ...filter, deviceIds: value.map((d) => d.id) })}
+              noOptionsText={t('sharedNoData')}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('deviceTitle')}
+                  placeholder={filter.deviceIds.length ? '' : t('builderAllDevices')}
+                />
+              )}
             />
             <Button
               variant="contained"

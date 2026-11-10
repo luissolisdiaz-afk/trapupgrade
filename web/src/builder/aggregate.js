@@ -12,6 +12,17 @@ export const SOURCES = {
       duration: { label: 'builderDuration', unit: 'h', agg: 'sum', value: (r) => r.duration / 3600000 },
     },
   },
+  summary: {
+    path: 'summary',
+    time: (r) => r.startTime,
+    groupBys: ['device', 'day', 'none'],
+    metrics: {
+      maxSpeed: { label: 'builderMaxSpeed', unit: 'km/h', agg: 'max', value: (r) => (r.maxSpeed || 0) * 1.852 },
+      averageSpeed: { label: 'builderAverageSpeed', unit: 'km/h', agg: 'max', value: (r) => (r.averageSpeed || 0) * 1.852 },
+      distance: { label: 'builderDistance', unit: 'km', agg: 'sum', value: (r) => (r.distance || 0) / 1000 },
+      engineHours: { label: 'builderEngineHours', unit: 'h', agg: 'sum', value: (r) => (r.engineHours || 0) / 3600000 },
+    },
+  },
   events: {
     path: 'events',
     time: (r) => r.eventTime,
@@ -64,7 +75,7 @@ export const aggregate = (rows, widget, deviceName) => {
 export const defaultWidgets = [
   { id: 'w1', type: 'kpi', title: '', source: 'trips', metric: 'distance', groupBy: 'none', span: 1 },
   { id: 'w2', type: 'kpi', title: '', source: 'overspeed', metric: 'count', groupBy: 'none', span: 1 },
-  { id: 'w3', type: 'kpi', title: '', source: 'trips', metric: 'maxSpeed', groupBy: 'none', span: 1 },
+  { id: 'w3', type: 'kpi', title: '', source: 'summary', metric: 'maxSpeed', groupBy: 'none', span: 1 },
   { id: 'w4', type: 'bar', title: '', source: 'overspeed', metric: 'count', groupBy: 'device', span: 2 },
   { id: 'w5', type: 'pie', title: '', source: 'trips', metric: 'distance', groupBy: 'device', span: 1 },
   { id: 'w6', type: 'line', title: '', source: 'trips', metric: 'distance', groupBy: 'day', span: 3 },

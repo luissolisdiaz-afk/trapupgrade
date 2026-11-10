@@ -5,7 +5,7 @@ import { useCatch } from '../reactHelper';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const MAX_DEVICES = 100;
-const EMPTY = { trips: [], events: [], prev: { trips: [], events: [] } };
+const EMPTY = { trips: [], events: [], summary: [], prev: { trips: [], events: [], summary: [] } };
 
 export default () => {
   const devices = useSelector((state) => state.devices.items);
@@ -13,18 +13,10 @@ export default () => {
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState({ count: 0, truncated: false });
 
-  const load = useCatch(async ({ from, to, groupId, regex }) => {
-    let re = null;
-    if (regex) {
-      try {
-        re = new RegExp(regex, 'i');
-      } catch {
-        throw new Error('Regex');
-      }
-    }
+  const load = useCatch(async ({ from, to, groupId, deviceIds }) => {
     let list = Object.values(devices);
     if (groupId) list = list.filter((d) => String(d.groupId) === String(groupId));
-    if (re) list = list.filter((d) => re.test(d.name));
+    if (deviceIds?.length) list = list.filter((d) => deviceIds.includes(d.id));
     const truncated = list.length > MAX_DEVICES;
     list = list.slice(0, MAX_DEVICES);
     setInfo({ count: list.length, truncated });
@@ -42,19 +34,27 @@ export default () => {
           from: rangeFrom.toISOString(),
           to: rangeTo.toISOString(),
         });
+        if (path === 'summary') query.append('daily', 'true');
         list.forEach((d) => query.append('deviceId', d.id));
         return fetchOrThrow(`api/reports/${path}?${query.toString()}`, {
           headers: { Accept: 'application/json' },
         }).then((r) => r.json());
       };
       const previousStart = start.subtract(length, 'millisecond');
-      const [trips, events, prevTrips, prevEvents] = await Promise.all([
+      const [trips, events, summary, prevTrips, prevEvents, prevSummary] = await Promise.all([
         fetchRange('trips', start, end),
         fetchRange('events', start, end),
+        fetchRange('summary', start, end),
         fetchRange('trips', previousStart, start),
         fetchRange('events', previousStart, start),
+        fetchRange('summary', previousStart, start),
       ]);
-      setData({ trips, events, prev: { trips: prevTrips, events: prevEvents } });
+      setData({
+        trips,
+        events,
+        summary,
+        prev: { trips: prevTrips, events: prevEvents, summary: prevSummary },
+      });
     } finally {
       setLoading(false);
     }
