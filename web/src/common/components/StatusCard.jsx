@@ -313,6 +313,18 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
 
   const [quickCommands, setQuickCommands] = useState([]);
   const [quickConfirm, setQuickConfirm] = useState(null);
+  const [lockChoice, setLockChoice] = useState(false);
+  const [assumedLock, setAssumedLock] = useState(null);
+  const lockMaxSpeed = Number(useSelector((state) => state.session.server.attributes['ui.lockMaxSpeed'])) || 0;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(`lockState-${deviceId}`);
+      setAssumedLock(saved ? JSON.parse(saved) : null);
+    } catch {
+      setAssumedLock(null);
+    }
+  }, [deviceId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -326,12 +338,22 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
 
   const sendQuickCommand = useCatch(async () => {
     const command = { ...quickConfirm, deviceId };
+    const kind = command.attributes?.quickActionKind;
     setQuickConfirm(null);
     const response = await fetchOrThrow('api/commands/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(command),
     });
+    if (kind === 'lock' || kind === 'unlock') {
+      const state = { locked: kind === 'lock', time: Date.now() };
+      setAssumedLock(state);
+      try {
+        window.localStorage.setItem(`lockState-${deviceId}`, JSON.stringify(state));
+      } catch {
+        // storage unavailable
+      }
+    }
     dispatch(
       messagesActions.push({
         message: t(response.status === 202 ? 'commandQueued' : 'commandSent'),
@@ -339,6 +361,38 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
       }),
     );
   });
+
+  const lockCommand = quickCommands.find((it) => it.attributes?.quickActionKind === 'lock');
+  const unlockCommand = quickCommands.find((it) => it.attributes?.quickActionKind === 'unlock');
+  const singleLock = Boolean(lockCommand && unlockCommand);
+  const reportedBlocked = position?.attributes?.blocked;
+  let lockState = 'unknown';
+  if (typeof reportedBlocked === 'boolean') {
+    lockState = reportedBlocked ? 'locked' : 'unlocked';
+  } else if (assumedLock) {
+    lockState = assumedLock.locked ? 'lockedSent' : 'unlockedSent';
+  }
+
+  const requestLock = (command) => {
+    const speed = position ? position.speed * 1.852 : 0;
+    if (command.attributes?.quickActionKind === 'lock' && lockMaxSpeed && speed > lockMaxSpeed) {
+      dispatch(
+        messagesActions.push({
+          message: `${t('cardLockSpeed')} ${lockMaxSpeed} km/h`,
+          severity: 'warning',
+        }),
+      );
+      return;
+    }
+    setLockChoice(false);
+    setQuickConfirm(command);
+  };
+
+  const onLockButton = () => {
+    if (lockState === 'locked' || lockState === 'lockedSent') requestLock(unlockCommand);
+    else if (lockState === 'unlocked' || lockState === 'unlockedSent') requestLock(lockCommand);
+    else setLockChoice(true);
+  };
 
   const handleGeofence = useCatchCallback(async () => {
     const newItem = {
@@ -498,21 +552,44 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
                   />
                 )}
-                {quickCommands.map((command) => {
-                  const kind = command.attributes?.quickActionKind;
-                  const Icon = { lock: LockIcon, unlock: LockOpenIcon }[kind] || BoltIcon;
-                  const color = { lock: 'error', unlock: 'success' }[kind] || 'primary';
-                  return (
-                    <ActionButton
-                      key={command.id}
-                      icon={<Icon />}
-                      label={command.description}
-                      color={color}
-                      disabled={disableActions}
-                      onClick={() => setQuickConfirm(command)}
-                    />
-                  );
-                })}
+                {singleLock && (
+                  <ActionButton
+                    icon={lockState === 'locked' || lockState === 'lockedSent' ? <LockIcon /> : <LockOpenIcon />}
+                    label={t(
+                      {
+                        locked: 'cardLocked',
+                        lockedSent: 'cardLockSent',
+                        unlocked: 'cardUnlocked',
+                        unlockedSent: 'cardUnlockSent',
+                        unknown: 'cardLockUnknown',
+                      }[lockState],
+                    )}
+                    color={
+                      { locked: 'error', lockedSent: 'error', unlocked: 'success', unlockedSent: 'success' }[
+                        lockState
+                      ] || 'default'
+                    }
+                    disabled={disableActions}
+                    onClick={onLockButton}
+                  />
+                )}
+                {quickCommands
+                  .filter((command) => !singleLock || !['lock', 'unlock'].includes(command.attributes?.quickActionKind))
+                  .map((command) => {
+                    const kind = command.attributes?.quickActionKind;
+                    const Icon = { lock: LockIcon, unlock: LockOpenIcon }[kind] || BoltIcon;
+                    const color = { lock: 'error', unlock: 'success' }[kind] || 'primary';
+                    return (
+                      <ActionButton
+                        key={command.id}
+                        icon={<Icon />}
+                        label={command.description}
+                        color={color}
+                        disabled={disableActions}
+                        onClick={() => requestLock(command)}
+                      />
+                    );
+                  })}
                 <ActionButton
                   icon={<MoreVertIcon />}
                   label={t('cardMore')}
@@ -615,6 +692,21 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
           )}
         </Menu>
       )}
+      <Dialog open={lockChoice} onClose={() => setLockChoice(false)}>
+        <DialogTitle>{device?.name}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('cardLockUnknownHint')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLockChoice(false)}>{t('sharedCancel')}</Button>
+          <Button color="success" onClick={() => requestLock(unlockCommand)}>
+            {t('cardUnlockAction')}
+          </Button>
+          <Button color="error" variant="contained" onClick={() => requestLock(lockCommand)}>
+            {t('cardLockAction')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog open={Boolean(quickConfirm)} onClose={() => setQuickConfirm(null)}>
         <DialogTitle>{quickConfirm?.description}</DialogTitle>
         <DialogContent>
