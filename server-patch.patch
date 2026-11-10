@@ -727,6 +727,32 @@ index 7b57888..c034db2 100644
  
      @QueryIgnore
      @Override
+diff --git a/src/main/java/org/traccar/model/Position.java b/src/main/java/org/traccar/model/Position.java
+index 738802a..19f32f6 100644
+--- a/src/main/java/org/traccar/model/Position.java
++++ b/src/main/java/org/traccar/model/Position.java
+@@ -154,6 +154,21 @@ public class Position extends Message {
+     public static final String ALARM_FUEL_LEAK = "fuelLeak";
+     public static final String ALARM_TAMPERING = "tampering";
+     public static final String ALARM_REMOVING = "removing";
++    public static final String ALARM_FORWARD_COLLISION = "forwardCollision";
++    public static final String ALARM_LANE_DEPARTURE = "laneDeparture";
++    public static final String ALARM_CLOSE_DISTANCE = "closeDistance";
++    public static final String ALARM_PEDESTRIAN_COLLISION = "pedestrianCollision";
++    public static final String ALARM_PHONE_USE = "phoneUse";
++    public static final String ALARM_SMOKING = "smoking";
++    public static final String ALARM_DISTRACTION = "distraction";
++    public static final String ALARM_DRIVER_ABNORMAL = "driverAbnormal";
++    public static final String ALARM_SEAT_BELT = "seatBelt";
++    public static final String ALARM_CAMERA_OCCLUSION = "cameraOcclusion";
++    public static final String ALARM_DRIVER_CHANGE = "driverChange";
++    public static final String ALARM_INFRARED_BLOCKING = "infraredBlocking";
++    public static final String ALARM_BLIND_SPOT_REAR = "blindSpotRear";
++    public static final String ALARM_BLIND_SPOT_LEFT = "blindSpotLeft";
++    public static final String ALARM_BLIND_SPOT_RIGHT = "blindSpotRight";
+ 
+     public Position() {}
+ 
 diff --git a/src/main/java/org/traccar/notification/CustomTemplateStore.java b/src/main/java/org/traccar/notification/CustomTemplateStore.java
 new file mode 100644
 index 0000000..845256c
@@ -987,7 +1013,7 @@ index 4f375d9..a400d12 100644
              @Override
              protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
 diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
-index d739c04..fffb006 100644
+index d739c04..9d246de 100644
 --- a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 +++ b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 @@ -17,8 +17,11 @@ package org.traccar.protocol;
@@ -1083,7 +1109,65 @@ index d739c04..fffb006 100644
          } else if (type == MSG_TERMINAL_AUTH || type == MSG_HEARTBEAT_2
                  || type == MSG_PHOTO || type == MSG_TERMINAL_LOGOUT || type == MSG_TIMEZONE_SYNC) {
  
-@@ -1961,4 +2017,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -893,15 +949,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+                 case 0x65:
+                     buf.readUnsignedInt(); // alarm serial number
+                     buf.readUnsignedByte(); // alarm status
+-                    position.set(subtype == 0x64 ? "adasAlarm" : "dmsAlarm", buf.readUnsignedByte());
++                    int adasType = buf.readUnsignedByte();
++                    position.set(subtype == 0x64 ? "adasAlarm" : "dmsAlarm", adasType);
++                    if (subtype == 0x64) {
++                        switch (adasType) {
++                            case 0x01 -> position.addAlarm(Position.ALARM_FORWARD_COLLISION);
++                            case 0x02 -> position.addAlarm(Position.ALARM_LANE_DEPARTURE);
++                            case 0x03 -> position.addAlarm(Position.ALARM_CLOSE_DISTANCE);
++                            case 0x04 -> position.addAlarm(Position.ALARM_PEDESTRIAN_COLLISION);
++                            default -> { }
++                        }
++                    } else {
++                        switch (adasType) {
++                            case 0x01 -> position.addAlarm(Position.ALARM_FATIGUE_DRIVING);
++                            case 0x02 -> position.addAlarm(Position.ALARM_PHONE_USE);
++                            case 0x03 -> position.addAlarm(Position.ALARM_SMOKING);
++                            case 0x04 -> position.addAlarm(Position.ALARM_DISTRACTION);
++                            case 0x05 -> position.addAlarm(Position.ALARM_DRIVER_ABNORMAL);
++                            case 0x06 -> position.addAlarm(Position.ALARM_SEAT_BELT);
++                            case 0x0A -> position.addAlarm(Position.ALARM_CAMERA_OCCLUSION);
++                            case 0x11 -> position.addAlarm(Position.ALARM_DRIVER_CHANGE);
++                            case 0x1F -> position.addAlarm(Position.ALARM_INFRARED_BLOCKING);
++                            default -> { }
++                        }
++                    }
+                     if (length >= 47) {
+                         buf.readerIndex(endIndex - 16);
+                         position.set("alarmLabel", ByteBufUtil.hexDump(buf.readSlice(16)));
+                     }
+                     break;
+                 case 0x67:
+-                    stringValue = buf.readCharSequence(8, StandardCharsets.US_ASCII).toString();
+-                    position.set("password", stringValue);
++                    if (length >= 41) {
++                        // blind spot monitoring alarm (table 3.5.11)
++                        buf.readUnsignedInt(); // alarm serial number
++                        buf.readUnsignedByte(); // alarm status
++                        int blindType = buf.readUnsignedByte();
++                        position.set("blindSpotAlarm", blindType);
++                        switch (blindType) {
++                            case 0x01 -> position.addAlarm(Position.ALARM_BLIND_SPOT_REAR);
++                            case 0x02 -> position.addAlarm(Position.ALARM_BLIND_SPOT_LEFT);
++                            case 0x03 -> position.addAlarm(Position.ALARM_BLIND_SPOT_RIGHT);
++                            default -> { }
++                        }
++                        buf.readerIndex(endIndex - 16);
++                        position.set("alarmLabel", ByteBufUtil.hexDump(buf.readSlice(16)));
++                    } else {
++                        stringValue = buf.readCharSequence(8, StandardCharsets.US_ASCII).toString();
++                        position.set("password", stringValue);
++                    }
+                     break;
+                 case 0x70:
+                     buf.readUnsignedInt(); // alarm serial number
+@@ -1961,4 +2056,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
          return null;
      }
  

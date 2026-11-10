@@ -949,15 +949,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                 case 0x65:
                     buf.readUnsignedInt(); // alarm serial number
                     buf.readUnsignedByte(); // alarm status
-                    position.set(subtype == 0x64 ? "adasAlarm" : "dmsAlarm", buf.readUnsignedByte());
+                    int adasType = buf.readUnsignedByte();
+                    position.set(subtype == 0x64 ? "adasAlarm" : "dmsAlarm", adasType);
+                    if (subtype == 0x64) {
+                        switch (adasType) {
+                            case 0x01 -> position.addAlarm(Position.ALARM_FORWARD_COLLISION);
+                            case 0x02 -> position.addAlarm(Position.ALARM_LANE_DEPARTURE);
+                            case 0x03 -> position.addAlarm(Position.ALARM_CLOSE_DISTANCE);
+                            case 0x04 -> position.addAlarm(Position.ALARM_PEDESTRIAN_COLLISION);
+                            default -> { }
+                        }
+                    } else {
+                        switch (adasType) {
+                            case 0x01 -> position.addAlarm(Position.ALARM_FATIGUE_DRIVING);
+                            case 0x02 -> position.addAlarm(Position.ALARM_PHONE_USE);
+                            case 0x03 -> position.addAlarm(Position.ALARM_SMOKING);
+                            case 0x04 -> position.addAlarm(Position.ALARM_DISTRACTION);
+                            case 0x05 -> position.addAlarm(Position.ALARM_DRIVER_ABNORMAL);
+                            case 0x06 -> position.addAlarm(Position.ALARM_SEAT_BELT);
+                            case 0x0A -> position.addAlarm(Position.ALARM_CAMERA_OCCLUSION);
+                            case 0x11 -> position.addAlarm(Position.ALARM_DRIVER_CHANGE);
+                            case 0x1F -> position.addAlarm(Position.ALARM_INFRARED_BLOCKING);
+                            default -> { }
+                        }
+                    }
                     if (length >= 47) {
                         buf.readerIndex(endIndex - 16);
                         position.set("alarmLabel", ByteBufUtil.hexDump(buf.readSlice(16)));
                     }
                     break;
                 case 0x67:
-                    stringValue = buf.readCharSequence(8, StandardCharsets.US_ASCII).toString();
-                    position.set("password", stringValue);
+                    if (length >= 41) {
+                        // blind spot monitoring alarm (table 3.5.11)
+                        buf.readUnsignedInt(); // alarm serial number
+                        buf.readUnsignedByte(); // alarm status
+                        int blindType = buf.readUnsignedByte();
+                        position.set("blindSpotAlarm", blindType);
+                        switch (blindType) {
+                            case 0x01 -> position.addAlarm(Position.ALARM_BLIND_SPOT_REAR);
+                            case 0x02 -> position.addAlarm(Position.ALARM_BLIND_SPOT_LEFT);
+                            case 0x03 -> position.addAlarm(Position.ALARM_BLIND_SPOT_RIGHT);
+                            default -> { }
+                        }
+                        buf.readerIndex(endIndex - 16);
+                        position.set("alarmLabel", ByteBufUtil.hexDump(buf.readSlice(16)));
+                    } else {
+                        stringValue = buf.readCharSequence(8, StandardCharsets.US_ASCII).toString();
+                        position.set("password", stringValue);
+                    }
                     break;
                 case 0x70:
                     buf.readUnsignedInt(); // alarm serial number

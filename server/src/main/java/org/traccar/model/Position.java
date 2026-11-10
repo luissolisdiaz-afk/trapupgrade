@@ -154,6 +154,21 @@ public class Position extends Message {
     public static final String ALARM_FUEL_LEAK = "fuelLeak";
     public static final String ALARM_TAMPERING = "tampering";
     public static final String ALARM_REMOVING = "removing";
+    public static final String ALARM_FORWARD_COLLISION = "forwardCollision";
+    public static final String ALARM_LANE_DEPARTURE = "laneDeparture";
+    public static final String ALARM_CLOSE_DISTANCE = "closeDistance";
+    public static final String ALARM_PEDESTRIAN_COLLISION = "pedestrianCollision";
+    public static final String ALARM_PHONE_USE = "phoneUse";
+    public static final String ALARM_SMOKING = "smoking";
+    public static final String ALARM_DISTRACTION = "distraction";
+    public static final String ALARM_DRIVER_ABNORMAL = "driverAbnormal";
+    public static final String ALARM_SEAT_BELT = "seatBelt";
+    public static final String ALARM_CAMERA_OCCLUSION = "cameraOcclusion";
+    public static final String ALARM_DRIVER_CHANGE = "driverChange";
+    public static final String ALARM_INFRARED_BLOCKING = "infraredBlocking";
+    public static final String ALARM_BLIND_SPOT_REAR = "blindSpotRear";
+    public static final String ALARM_BLIND_SPOT_LEFT = "blindSpotLeft";
+    public static final String ALARM_BLIND_SPOT_RIGHT = "blindSpotRight";
 
     public Position() {}
 
