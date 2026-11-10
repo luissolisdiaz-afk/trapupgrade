@@ -18,11 +18,11 @@ import {
   CardMedia,
   TableFooter,
   Link,
-  Tooltip,
   Avatar,
   Chip,
   Collapse,
   Box,
+  ButtonBase,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -42,8 +42,9 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import BoltIcon from '@mui/icons-material/Bolt';
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import DirectionsIcon from '@mui/icons-material/Directions';
+import ShareIcon from '@mui/icons-material/Share';
+import VideocamIcon from '@mui/icons-material/Videocam';
 
 import useFeatures from '../util/useFeatures';
 import { useTranslation } from './LocalizationProvider';
@@ -165,6 +166,39 @@ const SummaryItem = ({ icon, primary, secondary, wide }) => {
   );
 };
 
+const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled }) => (
+  <ButtonBase
+    onClick={onClick}
+    component={href ? 'a' : 'button'}
+    href={href}
+    target={href ? '_blank' : undefined}
+    rel={href ? 'noopener' : undefined}
+    disabled={disabled}
+    sx={{
+      flexDirection: 'column',
+      gap: 0.5,
+      width: 68,
+      borderRadius: 2,
+      py: 0.5,
+      opacity: disabled ? 0.4 : 1,
+    }}
+  >
+    <Avatar
+      sx={{
+        width: 44,
+        height: 44,
+        bgcolor: color === 'default' ? 'action.hover' : `${color}.main`,
+        color: color === 'default' ? 'text.primary' : '#fff',
+      }}
+    >
+      {icon}
+    </Avatar>
+    <Typography variant="caption" color="textSecondary" noWrap sx={{ maxWidth: '100%', lineHeight: 1.2 }}>
+      {label}
+    </Typography>
+  </ButtonBase>
+);
+
 const StatusRow = ({ name, content }) => {
   const { classes } = useStyles({ desktopPadding: 0 });
 
@@ -219,7 +253,15 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
       : position && position.speed > 1
         ? { color: 'success', label: t('cardMoving') }
         : { color: 'warning', label: t('cardStopped') };
-  const mapsLink = position && `https://www.google.com/maps/search/?api=1&query=${position.latitude}%2C${position.longitude}`;
+  const shareLocation = () => {
+    const text = `${device.name}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${position.latitude}%2C${position.longitude}`;
+    if (navigator.share) {
+      navigator.share({ title: text, text, url }).catch(() => {});
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(`${text}: ${url}`)}`, '_blank', 'noopener');
+    }
+  };
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -378,11 +420,12 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Collapse>
                 </CardContent>
               )}
-              <CardActions className={classes.actions} disableSpacing sx={{ flexWrap: 'wrap', gap: 1, p: 2, pt: 0 }}>
-                <Button
-                  variant="contained"
-                  className={classes.pill}
-                  startIcon={<PlayArrowIcon />}
+              <CardActions className={classes.actions} disableSpacing sx={{ justifyContent: 'space-around', gap: 0.5, p: 1.5, pt: 0 }}>
+                <ActionButton
+                  icon={<PlayArrowIcon />}
+                  label={t('cardTodayRoute')}
+                  color="primary"
+                  disabled={disableActions || !position}
                   onClick={() => {
                     const query = new URLSearchParams({
                       deviceId,
@@ -391,62 +434,51 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     });
                     navigate(`/replay?${query.toString()}`);
                   }}
-                  disabled={disableActions || !position}
-                >
-                  {t('cardTodayRoute')}
-                </Button>
-                <Button
-                  variant="text"
-                  className={classes.pill}
-                  startIcon={<WhatsAppIcon />}
-                  component="a"
-                  target="_blank"
-                  rel="noopener"
-                  href={position ? `https://wa.me/?text=${encodeURIComponent(`${device.name}: ${mapsLink}`)}` : undefined}
+                />
+                <ActionButton
+                  icon={<ShareIcon />}
+                  label={t('cardShareLocation')}
                   disabled={!position}
-                  sx={{ bgcolor: 'action.hover' }}
-                >
-                  {t('cardShareLocation')}
-                </Button>
-                <Button
-                  variant="text"
-                  className={classes.pill}
-                  startIcon={<DirectionsIcon />}
-                  component="a"
-                  target="_blank"
-                  rel="noopener"
+                  onClick={shareLocation}
+                />
+                <ActionButton
+                  icon={<DirectionsIcon />}
+                  label={t('cardDirections')}
+                  disabled={!position}
                   href={
                     position
                       ? `https://www.google.com/maps/dir/?api=1&destination=${position.latitude}%2C${position.longitude}`
                       : undefined
                   }
-                  disabled={!position}
-                  sx={{ bgcolor: 'action.hover' }}
-                >
-                  {t('cardDirections')}
-                </Button>
-                <Box sx={{ flex: 1 }} />
+                />
+                {!features.disableCameras && position?.protocol === 'jt808' && (
+                  <ActionButton
+                    icon={<VideocamIcon />}
+                    label={t('cardCamera')}
+                    onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
+                  />
+                )}
                 {quickCommands.map((command) => {
                   const kind = command.attributes?.quickActionKind;
                   const Icon = { lock: LockIcon, unlock: LockOpenIcon }[kind] || BoltIcon;
                   const color = { lock: 'error', unlock: 'success' }[kind] || 'primary';
                   return (
-                    <Tooltip key={command.id} title={command.description}>
-                      <IconButton
-                        color={color}
-                        onClick={() => setQuickConfirm(command)}
-                        disabled={disableActions}
-                      >
-                        <Icon />
-                      </IconButton>
-                    </Tooltip>
+                    <ActionButton
+                      key={command.id}
+                      icon={<Icon />}
+                      label={command.description}
+                      color={color}
+                      disabled={disableActions}
+                      onClick={() => setQuickConfirm(command)}
+                    />
                   );
                 })}
-                <Tooltip title={t('sharedExtra')}>
-                  <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} disabled={!position}>
-                    <MoreVertIcon />
-                  </IconButton>
-                </Tooltip>
+                <ActionButton
+                  icon={<MoreVertIcon />}
+                  label={t('sharedExtra')}
+                  disabled={!position}
+                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                />
               </CardActions>
             </Card>
           </Rnd>
