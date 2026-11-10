@@ -15,6 +15,7 @@ import {
   Menu,
   MenuItem,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
@@ -22,6 +23,8 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -189,7 +192,31 @@ const ReportBuilderPage = ({ readOnly = false }) => {
     load(filter);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const reveal = (id) => {
+    setEditing(true);
+    setTimeout(
+      () => document.getElementById(`widget-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      150,
+    );
+  };
+
+  const moveWidget = (id, delta) => {
+    setWidgets((list) => {
+      const index = list.findIndex((w) => w.id === id);
+      const target = index + delta;
+      if (index < 0 || target < 0 || target >= list.length) return list;
+      const next = [...list];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const resizeWidget = (id) => {
+    setWidgets((list) => list.map((w) => (w.id === id ? { ...w, span: (w.span % 3) + 1 } : w)));
+  };
+
   const saveWidget = (widget) => {
+    if (!widgets.some((w) => w.id === widget.id)) reveal(widget.id);
     setWidgets((list) =>
       list.some((w) => w.id === widget.id)
         ? list.map((w) => (w.id === widget.id ? widget : w))
@@ -245,10 +272,9 @@ const ReportBuilderPage = ({ readOnly = false }) => {
   };
 
   const addKpi = (source, metric) => {
-    setWidgets((list) => [
-      ...list,
-      { id: `k${Date.now()}`, type: 'kpi', title: '', source, metric, groupBy: 'none', span: 1 },
-    ]);
+    const id = `k${Date.now()}`;
+    setWidgets((list) => [...list, { id, type: 'kpi', title: '', source, metric, groupBy: 'none', span: 1 }]);
+    reveal(id);
     setKpiAnchor(null);
   };
 
@@ -264,6 +290,25 @@ const ReportBuilderPage = ({ readOnly = false }) => {
 
   const controls = (widget, light) => (
     <>
+      <Tooltip title={t('builderMoveBefore')}>
+        <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => moveWidget(widget.id, -1)}>
+          <ChevronLeftIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t('builderMoveAfter')}>
+        <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => moveWidget(widget.id, 1)}>
+          <ChevronRightIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t('builderWidth')}>
+        <Button
+          size="small"
+          sx={{ color: light ? '#fff' : 'inherit', minWidth: 0, px: 0.75, fontWeight: 700 }}
+          onClick={() => resizeWidget(widget.id)}
+        >
+          {`↔ ${widget.span}`}
+        </Button>
+      </Tooltip>
       <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => setDialog(widget)}>
         <EditIcon fontSize="small" />
       </IconButton>
@@ -422,11 +467,13 @@ const ReportBuilderPage = ({ readOnly = false }) => {
           <input ref={fileRef} type="file" accept=".tpl,application/json" hidden onChange={importTemplate} />
           {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
           {info.truncated && <Alert severity="info">{t('builderTruncated')}</Alert>}
+          {editing && <Alert severity="info">{t('builderEditHint')}</Alert>}
           {!widgets.length && <Typography color="textSecondary">{t('builderEmpty')}</Typography>}
           <div className={classes.grid}>
             {widgets.map((widget, index) => (
               <Card
                 key={widget.id}
+                id={`widget-${widget.id}`}
                 className={cx(
                   classes.widget,
                   editing && classes.editing,
