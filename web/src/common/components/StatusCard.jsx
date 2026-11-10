@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Rnd } from 'react-rnd';
+import dayjs from 'dayjs';
 import {
   Card,
   CardContent,
@@ -36,12 +37,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NearMeIcon from '@mui/icons-material/NearMe';
-import ExploreIcon from '@mui/icons-material/Explore';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import BoltIcon from '@mui/icons-material/Bolt';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import DirectionsIcon from '@mui/icons-material/Directions';
 
 import useFeatures from '../util/useFeatures';
 import { useTranslation } from './LocalizationProvider';
@@ -146,13 +148,10 @@ const useStyles = makeStyles()((theme, { desktopPadding }) => ({
 }));
 
 
-const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const compass = (course) => COMPASS[Math.round((((course % 360) + 360) % 360) / 45) % 8];
-
-const SummaryItem = ({ icon, primary, secondary }) => {
+const SummaryItem = ({ icon, primary, secondary, wide }) => {
   const { classes } = useStyles({ desktopPadding: 0 });
   return (
-    <div className={classes.summaryItem}>
+    <div className={classes.summaryItem} style={wide ? { gridColumn: '1 / -1' } : undefined}>
       {icon}
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="subtitle1" color="textPrimary" fontWeight={600} sx={{ lineHeight: 1.2 }}>
@@ -213,6 +212,14 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const speedUnit = useAttributePreference('speedUnit', 'kmh');
 
   const [removing, setRemoving] = useState(false);
+
+  const simpleState =
+    device?.status !== 'online'
+      ? { color: 'default', label: t('cardNoSignal') }
+      : position && position.speed > 1
+        ? { color: 'success', label: t('cardMoving') }
+        : { color: 'warning', label: t('cardStopped') };
+  const mapsLink = position && `https://www.google.com/maps/search/?api=1&query=${position.latitude}%2C${position.longitude}`;
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -290,8 +297,8 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 </Typography>
                 <Chip
                   size="small"
-                  color={device.status === 'online' ? 'success' : 'default'}
-                  label={formatStatus(device.status, t)}
+                  color={simpleState.color}
+                  label={simpleState.label}
                 />
                 <IconButton size="small" onClick={onClose} onTouchStart={onClose}>
                   <CloseIcon fontSize="small" />
@@ -324,11 +331,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                         `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`
                       }
                       secondary={t('positionAddress')}
-                    />
-                    <SummaryItem
-                      icon={<ExploreIcon />}
-                      primary={compass(position.course || 0)}
-                      secondary={t('positionCourse')}
+                      wide
                     />
                   </div>
                   <Typography variant="body2" sx={{ mt: 1.5 }}>
@@ -380,30 +383,47 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   variant="contained"
                   className={classes.pill}
                   startIcon={<PlayArrowIcon />}
-                  onClick={() => navigate(`/replay?deviceId=${deviceId}`)}
+                  onClick={() => {
+                    const query = new URLSearchParams({
+                      deviceId,
+                      from: dayjs().startOf('day').toISOString(),
+                      to: dayjs().endOf('day').toISOString(),
+                    });
+                    navigate(`/replay?${query.toString()}`);
+                  }}
                   disabled={disableActions || !position}
                 >
-                  {t('reportReplay')}
+                  {t('cardTodayRoute')}
                 </Button>
                 <Button
                   variant="text"
                   className={classes.pill}
-                  startIcon={<AltRouteIcon />}
-                  onClick={() => navigate(`/reports/route?deviceId=${deviceId}`)}
-                  disabled={disableActions}
+                  startIcon={<WhatsAppIcon />}
+                  component="a"
+                  target="_blank"
+                  rel="noopener"
+                  href={position ? `https://wa.me/?text=${encodeURIComponent(`${device.name}: ${mapsLink}`)}` : undefined}
+                  disabled={!position}
                   sx={{ bgcolor: 'action.hover' }}
                 >
-                  {t('mainRoute')}
+                  {t('cardShareLocation')}
                 </Button>
                 <Button
                   variant="text"
                   className={classes.pill}
-                  startIcon={<BarChartIcon />}
-                  onClick={() => navigate(`/reports/combined?deviceId=${deviceId}`)}
-                  disabled={disableActions}
+                  startIcon={<DirectionsIcon />}
+                  component="a"
+                  target="_blank"
+                  rel="noopener"
+                  href={
+                    position
+                      ? `https://www.google.com/maps/dir/?api=1&destination=${position.latitude}%2C${position.longitude}`
+                      : undefined
+                  }
+                  disabled={!position}
                   sx={{ bgcolor: 'action.hover' }}
                 >
-                  {t('reportTitle')}
+                  {t('cardDirections')}
                 </Button>
                 <Box sx={{ flex: 1 }} />
                 {quickCommands.map((command) => {
@@ -439,6 +459,18 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
             disabled={disableActions}
           >
             {t('commandTitle')}
+          </MenuItem>
+          <MenuItem
+            onClick={() => navigate(`/reports/route?deviceId=${deviceId}`)}
+            disabled={disableActions}
+          >
+            {t('mainRoute')}
+          </MenuItem>
+          <MenuItem
+            onClick={() => navigate(`/reports/combined?deviceId=${deviceId}`)}
+            disabled={disableActions}
+          >
+            {t('reportTitle')}
           </MenuItem>
           {!features.disableCameras && (
             <MenuItem

@@ -7,6 +7,9 @@ const MapCurrentLocation = () => {
   const theme = useTheme();
 
   useEffect(() => {
+    // the browser only allows geolocation on HTTPS (or localhost); otherwise the button shows
+    // "Location not available"
+    if (!window.isSecureContext || !navigator.geolocation) return undefined;
     const control = new maplibregl.GeolocateControl({
       positionOptions: {
         enableHighAccuracy: true,
