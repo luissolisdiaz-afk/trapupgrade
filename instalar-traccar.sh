@@ -20,6 +20,10 @@ sudo systemctl stop traccar 2>/dev/null || true
 sudo mkdir -p /opt/traccar/{conf,data,logs,web,media}
 sudo cp -r "$WORK/traccar/target/tracker-server.jar" "$WORK/traccar/target/lib" /opt/traccar/
 [ -f /opt/traccar/conf/traccar.xml ] || sudo cp "$WORK/traccar/setup/traccar.xml" /opt/traccar/conf/
+# nombre de calle (OpenStreetMap / Nominatim), solo cuando se pide en la web
+if ! grep -q "geocoder.type" /opt/traccar/conf/traccar.xml; then
+  sudo sed -i "s#</properties>#    <entry key='geocoder.type'>nominatim</entry>\n    <entry key='geocoder.url'>https://nominatim.openstreetmap.org/reverse</entry>\n    <entry key='geocoder.language'>es</entry>\n    <entry key='geocoder.cacheSize'>2000</entry>\n</properties>#" /opt/traccar/conf/traccar.xml
+fi
 sudo rm -rf /opt/traccar/web/* && sudo cp -r "$WEBBUILD"/* /opt/traccar/web/
 sudo tee /etc/systemd/system/traccar.service >/dev/null <<'UNIT'
 [Unit]

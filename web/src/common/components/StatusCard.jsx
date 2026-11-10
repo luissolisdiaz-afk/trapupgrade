@@ -166,6 +166,45 @@ const SummaryItem = ({ icon, primary, secondary, wide }) => {
   );
 };
 
+const addressCache = new Map();
+
+// street name of the position: uses the stored address or asks the server's geocoder
+const useStreetAddress = (position) => {
+  const enabled = useSelector((state) => state.session.server.geocoderEnabled);
+  const [address, setAddress] = useState(null);
+  const latitude = position?.latitude;
+  const longitude = position?.longitude;
+  const original = position?.address;
+
+  useEffect(() => {
+    if (original) {
+      setAddress(original);
+      return undefined;
+    }
+    setAddress(null);
+    if (!enabled || latitude === undefined) return undefined;
+    const key = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+    if (addressCache.has(key)) {
+      setAddress(addressCache.get(key));
+      return undefined;
+    }
+    const controller = new AbortController();
+    const query = new URLSearchParams({ latitude, longitude });
+    fetchOrThrow(`api/server/geocode?${query.toString()}`, { signal: controller.signal })
+      .then((response) => response.text())
+      .then((text) => {
+        if (text) {
+          addressCache.set(key, text);
+          setAddress(text);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [enabled, latitude, longitude, original]);
+
+  return address;
+};
+
 const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled }) => (
   <ButtonBase
     onClick={onClick}
@@ -246,6 +285,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const speedUnit = useAttributePreference('speedUnit', 'kmh');
 
   const [removing, setRemoving] = useState(false);
+  const streetAddress = useStreetAddress(position);
 
   const simpleState =
     device?.status !== 'online'
@@ -369,7 +409,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     <SummaryItem
                       icon={<NearMeIcon />}
                       primary={
-                        position.address ||
+                        streetAddress ||
                         `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`
                       }
                       secondary={t('positionAddress')}
