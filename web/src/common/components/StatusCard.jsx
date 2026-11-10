@@ -19,10 +19,12 @@ import {
   TableFooter,
   Link,
   Avatar,
+  Badge,
   Chip,
   Collapse,
   Box,
   ButtonBase,
+  SvgIcon,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -166,6 +168,39 @@ const SummaryItem = ({ icon, primary, secondary, wide }) => {
   );
 };
 
+const EngineIcon = (props) => (
+  <SvgIcon {...props}>
+    <path
+      fillRule="evenodd"
+      d="M9 3.5h5v1.8h-2v1.2h4.2l1.6 1.6H20v1.4h1.5v6H20v1.4h-2.2l-1.6 1.6H9.4L7.6 16.6V14.9H5.5v-1.6H3V10.6h2.5V9H7.6V8.1L9.4 6.5H10V5.3H9zM9.6 8.3v7.3h6.2l.9-.9V9.2l-.9-.9z"
+    />
+  </SvgIcon>
+);
+
+// engine with a small padlock: closed when the engine is cut, open when it is free
+const EngineLockIcon = ({ locked }) => (
+  <Badge
+    overlap="circular"
+    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    badgeContent={
+      <Avatar
+        sx={{
+          width: 18,
+          height: 18,
+          bgcolor: '#fff',
+          color: locked ? '#d32f2f' : '#2e7d32',
+          boxShadow: '0 0 0 1px rgba(0,0,0,0.15)',
+        }}
+      >
+        {locked ? <LockIcon sx={{ fontSize: 12 }} /> : <LockOpenIcon sx={{ fontSize: 12 }} />}
+      </Avatar>
+    }
+    sx={{ '& .MuiBadge-badge': { p: 0, minWidth: 0, height: 'auto', bgcolor: 'transparent', right: -6, bottom: -6 } }}
+  >
+    <EngineIcon />
+  </Badge>
+);
+
 const addressCache = new Map();
 
 // street name of the position: uses the stored address or asks the server's geocoder
@@ -216,7 +251,8 @@ const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled 
     sx={{
       flexDirection: 'column',
       gap: 0.5,
-      width: 68,
+      width: 72,
+      alignSelf: 'flex-start',
       borderRadius: 2,
       py: 0.5,
       opacity: disabled ? 0.4 : 1,
@@ -232,7 +268,19 @@ const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled 
     >
       {icon}
     </Avatar>
-    <Typography variant="caption" color="textSecondary" noWrap sx={{ maxWidth: '100%', lineHeight: 1.2 }}>
+    <Typography
+      variant="caption"
+      color="textSecondary"
+      sx={{
+        maxWidth: '100%',
+        lineHeight: 1.15,
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        textAlign: 'center',
+      }}
+    >
       {label}
     </Typography>
   </ButtonBase>
@@ -554,7 +602,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 )}
                 {singleLock && (
                   <ActionButton
-                    icon={lockState === 'locked' || lockState === 'lockedSent' ? <LockIcon /> : <LockOpenIcon />}
+                    icon={<EngineLockIcon locked={lockState === 'locked' || lockState === 'lockedSent'} />}
                     label={t(
                       {
                         locked: 'cardLocked',
