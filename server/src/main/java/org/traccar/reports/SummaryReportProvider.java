@@ -129,18 +129,27 @@ public class SummaryReportProvider {
     private Collection<SummaryReportItem> calculateDeviceResults(
             Device device, ZonedDateTime from, ZonedDateTime to, boolean daily) throws StorageException {
 
-        boolean fast = Duration.between(from, to).toSeconds() > config.getLong(Keys.REPORT_FAST_THRESHOLD);
+        long threshold = config.getLong(Keys.REPORT_FAST_THRESHOLD);
         var results = new ArrayList<SummaryReportItem>();
         if (daily) {
+            // each day is calculated on its own, so the fast mode (which skips the maximum speed) only applies
+            // when a single day is longer than the threshold
             while (from.truncatedTo(ChronoUnit.DAYS).isBefore(to.truncatedTo(ChronoUnit.DAYS))) {
                 ZonedDateTime fromDay = from.truncatedTo(ChronoUnit.DAYS);
                 ZonedDateTime nextDay = fromDay.plusDays(1);
                 results.addAll(calculateDeviceResult(
-                        device, Date.from(from.toInstant()), Date.from(nextDay.toInstant()), fast));
+                        device, Date.from(from.toInstant()), Date.from(nextDay.toInstant()),
+                        Duration.between(from, nextDay).toSeconds() > threshold));
                 from = nextDay;
             }
+            results.addAll(calculateDeviceResult(
+                    device, Date.from(from.toInstant()), Date.from(to.toInstant()),
+                    Duration.between(from, to).toSeconds() > threshold));
+        } else {
+            results.addAll(calculateDeviceResult(
+                    device, Date.from(from.toInstant()), Date.from(to.toInstant()),
+                    Duration.between(from, to).toSeconds() > threshold));
         }
-        results.addAll(calculateDeviceResult(device, Date.from(from.toInstant()), Date.from(to.toInstant()), fast));
         return results;
     }
 

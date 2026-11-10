@@ -2112,6 +2112,41 @@ index ea248e9..3b60942 100644
                  case Command.TYPE_VIDEO_STOP:
                      data.writeByte(command.getInteger(Command.KEY_INDEX, 1));
                      data.writeByte(0); // close audio/video transmission
+diff --git a/src/main/java/org/traccar/reports/SummaryReportProvider.java b/src/main/java/org/traccar/reports/SummaryReportProvider.java
+index ae0de10..af81e74 100644
+--- a/src/main/java/org/traccar/reports/SummaryReportProvider.java
++++ b/src/main/java/org/traccar/reports/SummaryReportProvider.java
+@@ -129,18 +129,27 @@ public class SummaryReportProvider {
+     private Collection<SummaryReportItem> calculateDeviceResults(
+             Device device, ZonedDateTime from, ZonedDateTime to, boolean daily) throws StorageException {
+ 
+-        boolean fast = Duration.between(from, to).toSeconds() > config.getLong(Keys.REPORT_FAST_THRESHOLD);
++        long threshold = config.getLong(Keys.REPORT_FAST_THRESHOLD);
+         var results = new ArrayList<SummaryReportItem>();
+         if (daily) {
++            // each day is calculated on its own, so the fast mode (which skips the maximum speed) only applies
++            // when a single day is longer than the threshold
+             while (from.truncatedTo(ChronoUnit.DAYS).isBefore(to.truncatedTo(ChronoUnit.DAYS))) {
+                 ZonedDateTime fromDay = from.truncatedTo(ChronoUnit.DAYS);
+                 ZonedDateTime nextDay = fromDay.plusDays(1);
+                 results.addAll(calculateDeviceResult(
+-                        device, Date.from(from.toInstant()), Date.from(nextDay.toInstant()), fast));
++                        device, Date.from(from.toInstant()), Date.from(nextDay.toInstant()),
++                        Duration.between(from, nextDay).toSeconds() > threshold));
+                 from = nextDay;
+             }
++            results.addAll(calculateDeviceResult(
++                    device, Date.from(from.toInstant()), Date.from(to.toInstant()),
++                    Duration.between(from, to).toSeconds() > threshold));
++        } else {
++            results.addAll(calculateDeviceResult(
++                    device, Date.from(from.toInstant()), Date.from(to.toInstant()),
++                    Duration.between(from, to).toSeconds() > threshold));
+         }
+-        results.addAll(calculateDeviceResult(device, Date.from(from.toInstant()), Date.from(to.toInstant()), fast));
+         return results;
+     }
+ 
 diff --git a/src/main/java/org/traccar/session/state/OverspeedProcessor.java b/src/main/java/org/traccar/session/state/OverspeedProcessor.java
 index 15be9c3..d2443d0 100644
 --- a/src/main/java/org/traccar/session/state/OverspeedProcessor.java
