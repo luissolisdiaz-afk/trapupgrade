@@ -79,6 +79,41 @@ export const prepareIcon = (background, icon, color) => {
   return context.getImageData(0, 0, canvas.width, canvas.height);
 };
 
+// top view vehicle (front pointing up) over a halo with the status color; rotated by the map layer
+export const prepareTopViewIcon = (background, vehicle, color) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = background.width * devicePixelRatio;
+  canvas.height = background.height * devicePixelRatio;
+  const context = canvas.getContext('2d');
+  const { width, height } = canvas;
+
+  // soft status halo
+  context.beginPath();
+  context.arc(width / 2, height / 2, width * 0.47, 0, Math.PI * 2);
+  context.fillStyle = color;
+  context.globalAlpha = 0.28;
+  context.fill();
+  context.globalAlpha = 1;
+  context.lineWidth = Math.max(2, width * 0.05);
+  context.strokeStyle = color;
+  context.stroke();
+
+  // vehicle fitted inside the halo keeping its proportions
+  const maxSize = height * 0.88;
+  const scale = Math.min(maxSize / vehicle.height, (width * 0.8) / vehicle.width);
+  const vehicleWidth = vehicle.width * scale;
+  const vehicleHeight = vehicle.height * scale;
+  context.drawImage(
+    vehicle,
+    (width - vehicleWidth) / 2,
+    (height - vehicleHeight) / 2,
+    vehicleWidth,
+    vehicleHeight,
+  );
+
+  return context.getImageData(0, 0, width, height);
+};
+
 export const reverseCoordinates = (it) => {
   if (!it) {
     return it;

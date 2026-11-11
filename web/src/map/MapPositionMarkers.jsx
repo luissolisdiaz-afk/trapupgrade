@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { map } from './core/MapView';
 import MapMarkers from './MapMarkers';
 import { formatTime, getStatusColor } from '../common/util/formatter';
-import { mapIconKey } from './core/preloadImages';
+import { mapIconKey, topViewKey } from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { fromMapCoordinates } from './core/mapUtil';
 
@@ -21,6 +21,7 @@ const MapPositionMarkers = ({
 
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
+  const topView = useAttributePreference('mapTopView', true);
 
   const onMapClickCallback = useCallback(
     (event) => {
@@ -54,13 +55,18 @@ const MapPositionMarkers = ({
     const color = showStatus
       ? position.attributes.color || getStatusColor(device.status)
       : 'neutral';
+    const topKey = topView ? topViewKey(device.category) : null;
+    if (topKey) {
+      // the vehicle itself already shows where it is heading
+      showDirection = false;
+    }
     const titles = { name: device.name, fixTime: formatTime(position.fixTime, 'seconds') };
     return {
       id: position.id,
       deviceId: position.deviceId,
       latitude: position.latitude,
       longitude: position.longitude,
-      image: `${mapIconKey(device.category)}-${color}`,
+      image: topKey ? `top-${topKey}-${color}` : `${mapIconKey(device.category)}-${color}`,
       title: titles[titleField || 'name'],
       rotation: position.course,
       direction: showDirection,

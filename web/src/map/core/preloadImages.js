@@ -1,9 +1,15 @@
 import { grey } from '@mui/material/colors';
 import { createTheme } from '@mui/material';
-import { loadImage, prepareIcon } from './mapUtil';
+import { loadImage, prepareIcon, prepareTopViewIcon } from './mapUtil';
 
 import directionSvg from '../../resources/images/direction.svg';
 import backgroundSvg from '../../resources/images/background.svg';
+import topCarSvg from '../../resources/images/topview/car.svg';
+import topVanSvg from '../../resources/images/topview/van.svg';
+import topBusSvg from '../../resources/images/topview/bus.svg';
+import topTruckSvg from '../../resources/images/topview/truck.svg';
+import topCraneSvg from '../../resources/images/topview/crane.svg';
+import topTractorSvg from '../../resources/images/topview/tractor.svg';
 import animalSvg from '@material-symbols/svg-600/outlined/pets.svg';
 import bicycleSvg from '@material-symbols/svg-600/outlined/directions_bike.svg';
 import boatSvg from '@material-symbols/svg-600/outlined/sailing.svg';
@@ -81,6 +87,21 @@ export const mapIconKey = (category) => {
   }
 };
 
+// top view vehicles, only used for the markers on the map (never in lists)
+export const topViewIcons = {
+  car: topCarSvg,
+  van: topVanSvg,
+  bus: topBusSvg,
+  truck: topTruckSvg,
+  crane: topCraneSvg,
+  tractor: topTractorSvg,
+};
+
+export const topViewKey = (category) => {
+  const key = mapIconKey(category);
+  return topViewIcons.hasOwnProperty(key) ? key : null;
+};
+
 export const eventIcons = {
   alarm: warningSvg,
   commandResult: taskAltSvg,
@@ -133,6 +154,18 @@ export default async () => {
         );
       });
       await Promise.all(results);
+    }),
+  );
+  await Promise.all(
+    Object.keys(topViewIcons).map(async (key) => {
+      const vehicle = await loadImage(topViewIcons[key]);
+      ['info', 'success', 'error', 'neutral'].forEach((color) => {
+        mapImages[`top-${key}-${color}`] = prepareTopViewIcon(
+          background,
+          vehicle,
+          theme.palette[color].main,
+        );
+      });
     }),
   );
   await Promise.all(
