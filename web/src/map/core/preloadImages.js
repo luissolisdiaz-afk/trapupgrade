@@ -10,6 +10,20 @@ import topBusSvg from '../../resources/images/topview/bus.svg';
 import topTruckSvg from '../../resources/images/topview/truck.svg';
 import topCraneSvg from '../../resources/images/topview/crane.svg';
 import topTractorSvg from '../../resources/images/topview/tractor.svg';
+import topTrainSvg from '../../resources/images/topview/train.svg';
+import topTramSvg from '../../resources/images/topview/tram.svg';
+import topPlaneSvg from '../../resources/images/topview/plane.svg';
+import topHelicopterSvg from '../../resources/images/topview/helicopter.svg';
+import topBoatSvg from '../../resources/images/topview/boat.svg';
+import topShipSvg from '../../resources/images/topview/ship.svg';
+import topDefaultSvg from '../../resources/images/topview/default.svg';
+import topBicycleSvg from '../../resources/images/topview/bicycle.svg';
+import topMotorcycleSvg from '../../resources/images/topview/motorcycle.svg';
+import topScooterSvg from '../../resources/images/topview/scooter.svg';
+import topPersonSvg from '../../resources/images/topview/person.svg';
+import topAnimalSvg from '../../resources/images/topview/animal.svg';
+import topTrailerSvg from '../../resources/images/topview/trailer.svg';
+import topCamperSvg from '../../resources/images/topview/camper.svg';
 import animalSvg from '@material-symbols/svg-600/outlined/pets.svg';
 import bicycleSvg from '@material-symbols/svg-600/outlined/directions_bike.svg';
 import boatSvg from '@material-symbols/svg-600/outlined/sailing.svg';
@@ -95,6 +109,20 @@ export const topViewIcons = {
   truck: topTruckSvg,
   crane: topCraneSvg,
   tractor: topTractorSvg,
+  train: topTrainSvg,
+  tram: topTramSvg,
+  plane: topPlaneSvg,
+  helicopter: topHelicopterSvg,
+  boat: topBoatSvg,
+  ship: topShipSvg,
+  default: topDefaultSvg,
+  bicycle: topBicycleSvg,
+  motorcycle: topMotorcycleSvg,
+  scooter: topScooterSvg,
+  person: topPersonSvg,
+  animal: topAnimalSvg,
+  trailer: topTrailerSvg,
+  camper: topCamperSvg,
 };
 
 export const topViewKey = (category) => {

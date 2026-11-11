@@ -55,6 +55,8 @@ const MainToolbar = ({
   setFilterSort,
   filterMap,
   setFilterMap,
+  groupDevices,
+  setGroupDevices,
 }) => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -209,6 +211,15 @@ const MainToolbar = ({
                 <Checkbox checked={filterMap} onChange={(e) => setFilterMap(e.target.checked)} />
               }
               label={t('sharedFilterMap')}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!groupDevices}
+                  onChange={(e) => setGroupDevices(e.target.checked)}
+                />
+              }
+              label={t('sharedGroupDevices')}
             />
           </FormGroup>
         </div>
