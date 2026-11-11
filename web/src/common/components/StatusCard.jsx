@@ -24,7 +24,6 @@ import {
   Collapse,
   Box,
   ButtonBase,
-  SvgIcon,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -41,6 +40,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NearMeIcon from '@mui/icons-material/NearMe';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import BoltIcon from '@mui/icons-material/Bolt';
@@ -168,16 +168,7 @@ const SummaryItem = ({ icon, primary, secondary, wide }) => {
   );
 };
 
-const EngineIcon = (props) => (
-  <SvgIcon {...props}>
-    <path
-      fillRule="evenodd"
-      d="M9 3.5h5v1.8h-2v1.2h4.2l1.6 1.6H20v1.4h1.5v6H20v1.4h-2.2l-1.6 1.6H9.4L7.6 16.6V14.9H5.5v-1.6H3V10.6h2.5V9H7.6V8.1L9.4 6.5H10V5.3H9zM9.6 8.3v7.3h6.2l.9-.9V9.2l-.9-.9z"
-    />
-  </SvgIcon>
-);
-
-// engine with a small padlock: closed when the engine is cut, open when it is free
+// vehicle with a padlock: closed (red) when the engine is cut, open (green) when it is free
 const EngineLockIcon = ({ locked }) => (
   <Badge
     overlap="circular"
@@ -185,19 +176,19 @@ const EngineLockIcon = ({ locked }) => (
     badgeContent={
       <Avatar
         sx={{
-          width: 18,
-          height: 18,
+          width: 20,
+          height: 20,
           bgcolor: '#fff',
           color: locked ? '#d32f2f' : '#2e7d32',
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.15)',
+          boxShadow: '0 0 0 1.5px currentColor',
         }}
       >
-        {locked ? <LockIcon sx={{ fontSize: 12 }} /> : <LockOpenIcon sx={{ fontSize: 12 }} />}
+        {locked ? <LockIcon sx={{ fontSize: 14 }} /> : <LockOpenIcon sx={{ fontSize: 14 }} />}
       </Avatar>
     }
-    sx={{ '& .MuiBadge-badge': { p: 0, minWidth: 0, height: 'auto', bgcolor: 'transparent', right: -6, bottom: -6 } }}
+    sx={{ '& .MuiBadge-badge': { p: 0, minWidth: 0, height: 'auto', bgcolor: 'transparent', right: -8, bottom: -8 } }}
   >
-    <EngineIcon />
+    <DirectionsCarIcon />
   </Badge>
 );
 
