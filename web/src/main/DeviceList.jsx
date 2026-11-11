@@ -82,7 +82,7 @@ const Row = ({ rows, collapsedGroups, onToggle, index, style }) => {
   return <DeviceRow devices={[row.device]} index={0} style={style} />;
 };
 
-const DeviceList = ({ devices, groupDevices }) => {
+const DeviceList = ({ devices }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const t = useTranslation();
@@ -110,9 +110,6 @@ const DeviceList = ({ devices, groupDevices }) => {
   const onToggle = (key) => setCollapsedGroups({ ...collapsedGroups, [key]: !collapsedGroups[key] });
 
   const rows = useMemo(() => {
-    if (!groupDevices) {
-      return devices.map((device) => ({ type: 'device', device }));
-    }
     // full name of a group including its parents, e.g. "Empresa / Flota"
     const groupPath = (id) => {
       const names = [];
@@ -155,7 +152,7 @@ const DeviceList = ({ devices, groupDevices }) => {
       }
     });
     return result;
-  }, [devices, groupDevices, groups, collapsedGroups, t]);
+  }, [devices, groups, collapsedGroups, t]);
 
   return (
     <List

@@ -148,7 +148,6 @@ const MainPage = () => {
   });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
-  const [groupDevices, setGroupDevices] = usePersistedState('groupDevices', false);
 
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
@@ -204,8 +203,6 @@ const MainPage = () => {
               setFilterSort,
               filterMap,
               setFilterMap,
-              groupDevices,
-              setGroupDevices,
             }}
           />
           <div className={classes.desktopBody}>
@@ -221,7 +218,7 @@ const MainPage = () => {
                   </IconButton>
                 </div>
                 <div className={classes.listBody}>
-                  <DeviceList devices={filteredDevices} groupDevices={groupDevices} />
+                  <DeviceList devices={filteredDevices} />
                 </div>
               </div>
             )}
@@ -276,8 +273,6 @@ const MainPage = () => {
               setFilterSort={setFilterSort}
               filterMap={filterMap}
               setFilterMap={setFilterMap}
-              groupDevices={groupDevices}
-              setGroupDevices={setGroupDevices}
             />
           </Paper>
         )}
@@ -299,7 +294,7 @@ const MainPage = () => {
               className={classes.contentList}
               style={devicesOpen ? {} : { visibility: 'hidden' }}
             >
-              <DeviceList devices={filteredDevices} groupDevices={groupDevices} />
+              <DeviceList devices={filteredDevices} />
             </Paper>
           )}
         </div>
