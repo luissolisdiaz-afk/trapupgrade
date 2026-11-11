@@ -328,6 +328,7 @@
     "cardUnlockAction": "Desbloquear",
     "cardLockSpeed": "No se puede bloquear mientras el vehículo va a más de",
     "cardLockUnknownHint": "No se conoce el estado actual del vehículo. ¿Qué deseas hacer?",
+    "deviceShowAll": "Mostrar todos los equipos (de todos los usuarios)",
     "builderFilterName": "Filtrar por nombre",
     "userCameras": "Cámaras (dashcam)",
     "userDashboard": "Dashboard (cuentas empresa)",

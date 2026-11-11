@@ -328,6 +328,7 @@
     "cardUnlockAction": "Unlock",
     "cardLockSpeed": "Cannot lock while the vehicle is moving faster than",
     "cardLockUnknownHint": "The current state of the vehicle is unknown. What do you want to do?",
+    "deviceShowAll": "Show all devices (all users)",
     "builderFilterName": "Filter by name",
     "userCameras": "Cameras (dashcam)",
     "userDashboard": "Dashboard (business accounts)",

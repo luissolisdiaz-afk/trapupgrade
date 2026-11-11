@@ -184,7 +184,7 @@ const DevicesPage = () => {
                     size="small"
                   />
                 }
-                label={t('notificationAlways')}
+                label={t('deviceShowAll')}
                 labelPlacement="start"
                 disabled={!manager}
               />
