@@ -601,6 +601,7 @@
     "mapCurrentLocation": "Ubicación actual",
     "mapPoiLayer": "Capa de puntos de interés",
     "mapClustering": "Agrupar marcadores",
+    "mapLocationNeedsHttps": "Tu ubicación solo está disponible con conexión segura (HTTPS).",
     "mapOnSelect": "Mostrar mapa al seleccionar",
     "mapDefault": "Mapa por defecto",
     "stateTitle": "Estado",

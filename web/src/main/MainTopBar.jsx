@@ -9,7 +9,6 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
-  Select,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import NotificationsIcon from '@mui/icons-material/NotificationsNone';
@@ -44,18 +43,6 @@ const useStyles = makeStyles()((theme) => ({
   spacer: {
     flex: 1,
   },
-  group: {
-    minWidth: 190,
-    borderRadius: 24,
-    background: theme.palette.background.paper,
-    '& .MuiSelect-select': {
-      paddingTop: 9,
-      paddingBottom: 9,
-    },
-    '& fieldset': {
-      border: 'none',
-    },
-  },
 }));
 
 const initials = (name) =>
@@ -66,14 +53,13 @@ const initials = (name) =>
     .join('')
     .toUpperCase();
 
-const MainTopBar = ({ toolbarProps, filter, setFilter, onEventsClick, showSearch }) => {
+const MainTopBar = ({ toolbarProps, onEventsClick, showSearch }) => {
   const { classes } = useStyles();
   const t = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const user = useSelector((state) => state.session.user);
-  const groups = useSelector((state) => state.groups.items);
   const eventCount = useSelector((state) => state.events.items.length);
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -108,8 +94,6 @@ const MainTopBar = ({ toolbarProps, filter, setFilter, onEventsClick, showSearch
     dispatch(sessionActions.updateUser(null));
   };
 
-  const selectedGroup = filter.groups.length === 1 ? filter.groups[0] : '';
-
   return (
     <div className={classes.root}>
       {showSearch && (
@@ -118,26 +102,6 @@ const MainTopBar = ({ toolbarProps, filter, setFilter, onEventsClick, showSearch
         </div>
       )}
       <div className={classes.spacer} />
-      {showSearch && (
-        <Select
-          className={classes.group}
-          size="small"
-          displayEmpty
-          value={selectedGroup}
-          onChange={(e) =>
-            setFilter({ ...filter, groups: e.target.value === '' ? [] : [e.target.value] })
-          }
-        >
-          <MenuItem value="">{t('notificationAlways')}</MenuItem>
-          {Object.values(groups)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((group) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.name}
-              </MenuItem>
-            ))}
-        </Select>
-      )}
       <IconButton onClick={onEventsClick}>
         <Badge color="error" badgeContent={eventCount} max={99}>
           <NotificationsIcon />

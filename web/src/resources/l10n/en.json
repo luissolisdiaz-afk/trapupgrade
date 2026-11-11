@@ -601,6 +601,7 @@
     "mapCurrentLocation": "Current Location",
     "mapPoiLayer": "POI Layer",
     "mapClustering": "Marker Clustering",
+    "mapLocationNeedsHttps": "Your location is only available over a secure connection (HTTPS).",
     "mapOnSelect": "Show Map on Selection",
     "mapDefault": "Default Map",
     "stateTitle": "State",

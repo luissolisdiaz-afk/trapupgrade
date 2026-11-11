@@ -188,8 +188,6 @@ const MainPage = () => {
         <div className={classes.desktopColumn}>
           <MainTopBar
             showSearch={!features.disableDeviceList}
-            filter={filter}
-            setFilter={setFilter}
             onEventsClick={onEventsClick}
             toolbarProps={{
               filteredDevices,
