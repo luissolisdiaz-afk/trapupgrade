@@ -19,7 +19,6 @@ import {
   TableFooter,
   Link,
   Avatar,
-  Badge,
   Chip,
   Collapse,
   Box,
@@ -40,7 +39,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NearMeIcon from '@mui/icons-material/NearMe';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import EngineLockIcon from './EngineLockIcon';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import BoltIcon from '@mui/icons-material/Bolt';
@@ -167,30 +166,6 @@ const SummaryItem = ({ icon, primary, secondary, wide }) => {
     </div>
   );
 };
-
-// vehicle with a padlock: closed (red) when the engine is cut, open (green) when it is free
-const EngineLockIcon = ({ locked }) => (
-  <Badge
-    overlap="circular"
-    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    badgeContent={
-      <Avatar
-        sx={{
-          width: 20,
-          height: 20,
-          bgcolor: '#fff',
-          color: locked ? '#d32f2f' : '#2e7d32',
-          boxShadow: '0 0 0 1.5px currentColor',
-        }}
-      >
-        {locked ? <LockIcon sx={{ fontSize: 14 }} /> : <LockOpenIcon sx={{ fontSize: 14 }} />}
-      </Avatar>
-    }
-    sx={{ '& .MuiBadge-badge': { p: 0, minWidth: 0, height: 'auto', bgcolor: 'transparent', right: -8, bottom: -8 } }}
-  >
-    <DirectionsCarIcon />
-  </Badge>
-);
 
 const addressCache = new Map();
 
@@ -593,7 +568,12 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 )}
                 {singleLock && (
                   <ActionButton
-                    icon={<EngineLockIcon locked={lockState === 'locked' || lockState === 'lockedSent'} />}
+                    icon={
+                      <EngineLockIcon
+                        sx={{ fontSize: 34 }}
+                        locked={lockState === 'locked' || lockState === 'lockedSent'}
+                      />
+                    }
                     label={t(
                       {
                         locked: 'cardLocked',
