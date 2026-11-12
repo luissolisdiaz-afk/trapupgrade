@@ -192,7 +192,7 @@ const DevicesPage = () => {
           </TableRow>
         </TableFooter>
       </Table>
-      <AddFab editPath="/settings/device" disabled={!administrator} />
+      {administrator && <AddFab editPath="/settings/device" />}
     </PageLayout>
   );
 };

@@ -20,6 +20,7 @@ import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.MediaManager;
 import org.traccar.helper.LogAction;
+import org.traccar.model.AttributeMap;
 import org.traccar.model.Device;
 import org.traccar.model.DeviceAccumulators;
 import org.traccar.model.LinkedDevice;
@@ -92,6 +93,34 @@ public class DeviceResource extends BaseObjectResource<Device> {
     public Response add(Device entity) throws Exception {
         checkAdminOnly();
         return super.add(entity);
+    }
+
+    @Override
+    public Response update(Device entity) throws Exception {
+        if (!permissionsService.getUser(getUserId()).getAdministrator()) {
+            permissionsService.checkPermission(Device.class, getUserId(), entity.getId());
+            Device current = storage.getObject(Device.class, new Request(
+                    new Columns.All(), new Condition.Equals("id", entity.getId())));
+            if (current != null) {
+                // customers can only change the name, the group, the category and the picture
+                entity.setUniqueId(current.getUniqueId());
+                entity.setPhone(current.getPhone());
+                entity.setModel(current.getModel());
+                entity.setContact(current.getContact());
+                entity.setExpirationTime(current.getExpirationTime());
+                entity.setDisabled(current.getDisabled());
+                entity.setCalendarId(current.getCalendarId());
+                var attributes = new AttributeMap(current.getAttributes());
+                Object image = entity.getAttributes().get("deviceImage");
+                if (image != null) {
+                    attributes.put("deviceImage", image);
+                } else {
+                    attributes.remove("deviceImage");
+                }
+                entity.setAttributes(attributes);
+            }
+        }
+        return super.update(entity);
     }
 
     @Override

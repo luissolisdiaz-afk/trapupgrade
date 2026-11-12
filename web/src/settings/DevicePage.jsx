@@ -18,7 +18,7 @@ import SelectField from '../common/components/SelectField';
 import deviceCategories from '../common/util/deviceCategories';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import useDeviceAttributes from '../common/attributes/useDeviceAttributes';
-import { useManager } from '../common/util/permissions';
+import { useAdministrator, useManager } from '../common/util/permissions';
 import SettingsMenu from './components/SettingsMenu';
 import useCommonDeviceAttributes from '../common/attributes/useCommonDeviceAttributes';
 import { useCatch } from '../reactHelper';
@@ -31,6 +31,7 @@ const DevicePage = () => {
   const t = useTranslation();
 
   const manager = useManager();
+  const admin = useAdministrator();
 
   const commonDeviceAttributes = useCommonDeviceAttributes(t);
   const deviceAttributes = useDeviceAttributes(t);
@@ -80,6 +81,7 @@ const DevicePage = () => {
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
               />
+              {admin && (
               <TextField
                 value={item.uniqueId || ''}
                 onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
@@ -87,6 +89,7 @@ const DevicePage = () => {
                 helperText={t('deviceIdentifierHelp')}
                 disabled={Boolean(uniqueId)}
               />
+              )}
             </AccordionDetails>
           </Accordion>
           <Accordion>
@@ -100,21 +103,27 @@ const DevicePage = () => {
                 endpoint="api/groups"
                 label={t('groupParent')}
               />
+              {admin && (
               <TextField
                 value={item.phone || ''}
                 onChange={(event) => setItem({ ...item, phone: event.target.value })}
                 label={t('sharedPhone')}
               />
+              )}
+              {admin && (
               <TextField
                 value={item.model || ''}
                 onChange={(event) => setItem({ ...item, model: event.target.value })}
                 label={t('deviceModel')}
               />
+              )}
+              {admin && (
               <TextField
                 value={item.contact || ''}
                 onChange={(event) => setItem({ ...item, contact: event.target.value })}
                 label={t('deviceContact')}
               />
+              )}
               <SelectField
                 value={item.category || 'default'}
                 onChange={(event) => setItem({ ...item, category: event.target.value })}
@@ -126,12 +135,16 @@ const DevicePage = () => {
                   .sort((a, b) => a.name.localeCompare(b.name))}
                 label={t('deviceCategory')}
               />
+              {admin && (
               <SelectField
                 value={item.calendarId}
                 onChange={(event) => setItem({ ...item, calendarId: Number(event.target.value) })}
                 endpoint="api/calendars"
                 label={t('sharedCalendar')}
               />
+              )}
+              {admin && (
+                <>
               <TextField
                 label={t('userExpirationTime')}
                 type="date"
@@ -156,6 +169,8 @@ const DevicePage = () => {
               <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
                 {t('sharedQrCode')}
               </Button>
+                </>
+              )}
             </AccordionDetails>
           </Accordion>
           {item.id && (
@@ -173,11 +188,13 @@ const DevicePage = () => {
               </AccordionDetails>
             </Accordion>
           )}
+          {admin && (
           <EditAttributesAccordion
             attributes={item.attributes}
             setAttributes={(attributes) => setItem({ ...item, attributes })}
             definitions={{ ...commonDeviceAttributes, ...deviceAttributes }}
           />
+          )}
         </>
       )}
       <ServerQrCodeDialog open={showQr} onClose={() => setShowQr(false)} />

@@ -452,6 +452,7 @@
     "cameraNoClip": "Sin clip",
     "cameraEventLocation": "Ubicación",
     "cameraEmptyHint": "Aún no hay cámaras. Marca un dispositivo como cámara agregando el atributo camera = true.",
+    "cameraMaxLive": "Máximo 4 cámaras en vivo a la vez. Detén una para ver otra.",
     "linkRecordings": "Grabaciones (tarjeta SD)",
     "positionFixTime": "Hora de la localización",
     "positionDeviceTime": "Hora del dispositivo",

@@ -48,6 +48,7 @@ import ShareIcon from '@mui/icons-material/Share';
 import VideocamIcon from '@mui/icons-material/Videocam';
 
 import useFeatures from '../util/useFeatures';
+import { isCameraDevice } from '../../cameras/useCameraDevices';
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
@@ -559,11 +560,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       : undefined
                   }
                 />
-                {!features.disableCameras && position?.protocol === 'jt808' && (
+                {!features.disableCameras && isCameraDevice(device, position) && (
                   <ActionButton
                     icon={<VideocamIcon />}
                     label={t('cardCamera')}
-                    onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
+                    onClick={() => navigate(`/cameras?deviceId=${deviceId}&play=1`)}
                   />
                 )}
                 {singleLock && (
@@ -640,19 +641,13 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
           >
             {t('reportTitle')}
           </MenuItem>
-          {!features.disableCameras && (
-            <MenuItem
-              onClick={() => navigate(`/stream?deviceId=${deviceId}`)}
-              disabled={position.protocol !== 'jt808'}
-            >
+          {!features.disableCameras && isCameraDevice(device, position) && (
+            <MenuItem onClick={() => navigate(`/cameras?deviceId=${deviceId}&play=1`)}>
               {t('linkLiveVideo')}
             </MenuItem>
           )}
-          {!features.disableCameras && (
-            <MenuItem
-              onClick={() => navigate(`/cameras/recordings?deviceId=${deviceId}`)}
-              disabled={position.protocol !== 'jt808'}
-            >
+          {!features.disableCameras && isCameraDevice(device, position) && (
+            <MenuItem onClick={() => navigate(`/cameras/recordings?deviceId=${deviceId}`)}>
               {t('linkRecordings')}
             </MenuItem>
           )}

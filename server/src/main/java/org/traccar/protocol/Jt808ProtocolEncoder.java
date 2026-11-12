@@ -216,7 +216,7 @@ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
                     data.writeShort(0); // udp port
                     data.writeByte(videoChannel);
                     data.writeByte(1); // video only
-                    data.writeByte(0); // main stream
+                    data.writeByte(command.getInteger("stream", 0) == 1 ? 1 : 0); // 0 main, 1 sub stream
                     return decoder.formatMessage(
                             Jt808ProtocolDecoder.MSG_VIDEO_REQUEST, id, false, data);
                 case Command.TYPE_VIDEO_QUERY:

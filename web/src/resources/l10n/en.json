@@ -452,6 +452,7 @@
     "cameraNoClip": "No clip",
     "cameraEventLocation": "Location",
     "cameraEmptyHint": "No cameras yet. Mark a device as a camera by adding the attribute camera = true.",
+    "cameraMaxLive": "Maximum 4 live cameras at once. Stop one to view another.",
     "linkRecordings": "Recordings (SD card)",
     "positionFixTime": "Fix Time",
     "positionDeviceTime": "Device Time",

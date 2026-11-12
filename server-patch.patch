@@ -260,10 +260,10 @@ index 0000000..a0d55a6
 +
 +}
 diff --git a/src/main/java/org/traccar/api/resource/DeviceResource.java b/src/main/java/org/traccar/api/resource/DeviceResource.java
-index 8aedc0b..73bdd31 100644
+index 8aedc0b..aff2d4d 100644
 --- a/src/main/java/org/traccar/api/resource/DeviceResource.java
 +++ b/src/main/java/org/traccar/api/resource/DeviceResource.java
-@@ -16,6 +16,8 @@
+@@ -16,8 +16,11 @@
  package org.traccar.api.resource;
  
  import org.traccar.api.BaseObjectResource;
@@ -271,8 +271,11 @@ index 8aedc0b..73bdd31 100644
 +import org.traccar.config.Keys;
  import org.traccar.database.MediaManager;
  import org.traccar.helper.LogAction;
++import org.traccar.model.AttributeMap;
  import org.traccar.model.Device;
-@@ -74,9 +76,30 @@ public class DeviceResource extends BaseObjectResource<Device> {
+ import org.traccar.model.DeviceAccumulators;
+ import org.traccar.model.LinkedDevice;
+@@ -74,9 +77,58 @@ public class DeviceResource extends BaseObjectResource<Device> {
      @Inject
      private LogAction actionLogger;
  
@@ -292,6 +295,34 @@ index 8aedc0b..73bdd31 100644
 +    public Response add(Device entity) throws Exception {
 +        checkAdminOnly();
 +        return super.add(entity);
++    }
++
++    @Override
++    public Response update(Device entity) throws Exception {
++        if (!permissionsService.getUser(getUserId()).getAdministrator()) {
++            permissionsService.checkPermission(Device.class, getUserId(), entity.getId());
++            Device current = storage.getObject(Device.class, new Request(
++                    new Columns.All(), new Condition.Equals("id", entity.getId())));
++            if (current != null) {
++                // customers can only change the name, the group, the category and the picture
++                entity.setUniqueId(current.getUniqueId());
++                entity.setPhone(current.getPhone());
++                entity.setModel(current.getModel());
++                entity.setContact(current.getContact());
++                entity.setExpirationTime(current.getExpirationTime());
++                entity.setDisabled(current.getDisabled());
++                entity.setCalendarId(current.getCalendarId());
++                var attributes = new AttributeMap(current.getAttributes());
++                Object image = entity.getAttributes().get("deviceImage");
++                if (image != null) {
++                    attributes.put("deviceImage", image);
++                } else {
++                    attributes.remove("deviceImage");
++                }
++                entity.setAttributes(attributes);
++            }
++        }
++        return super.update(entity);
 +    }
 +
 +    @Override
@@ -2047,7 +2078,7 @@ index d739c04..d2cc44e 100644
 +
  }
 diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
-index ea248e9..3b60942 100644
+index ea248e9..b2464d8 100644
 --- a/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
 +++ b/src/main/java/org/traccar/protocol/Jt808ProtocolEncoder.java
 @@ -16,6 +16,7 @@
@@ -2087,8 +2118,12 @@ index ea248e9..3b60942 100644
          try {
              ByteBuf data = Unpooled.buffer();
  
-@@ -209,6 +219,42 @@ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
-                     data.writeByte(0); // main stream
+@@ -206,9 +216,45 @@ public class Jt808ProtocolEncoder extends BaseProtocolEncoder {
+                     data.writeShort(0); // udp port
+                     data.writeByte(videoChannel);
+                     data.writeByte(1); // video only
+-                    data.writeByte(0); // main stream
++                    data.writeByte(command.getInteger("stream", 0) == 1 ? 1 : 0); // 0 main, 1 sub stream
                      return decoder.formatMessage(
                              Jt808ProtocolDecoder.MSG_VIDEO_REQUEST, id, false, data);
 +                case Command.TYPE_VIDEO_QUERY:
