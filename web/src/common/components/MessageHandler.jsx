@@ -15,10 +15,12 @@ import { usePrevious } from '../../reactHelper';
 import { messagesActions } from '../../store';
 import { useTranslation } from './LocalizationProvider';
 import { snackBarDurationShortMs } from '../util/duration';
+import ConnectionBanner, { isNetworkError, useConnectionMessage } from './ConnectionBanner';
 
 const MessageHandler = () => {
   const dispatch = useDispatch();
   const t = useTranslation();
+  const connectionMessage = useConnectionMessage();
 
   const messages = useSelector((state) => state.messages.messages);
   const hasMessage = messages.length > 0;
@@ -26,9 +28,10 @@ const MessageHandler = () => {
   const cachedMessage = usePrevious(currentMessage);
 
   const activeMessage = hasMessage ? currentMessage : cachedMessage;
-  const message =
+  const rawMessage =
     (typeof activeMessage === 'string' ? activeMessage : activeMessage?.message) ||
     t('errorGeneral');
+  const message = isNetworkError(rawMessage) ? connectionMessage : rawMessage;
   const severity = activeMessage?.severity || 'error';
   const { duration = severity === 'error' ? null : snackBarDurationShortMs } = activeMessage || {};
   const multiline = message.includes('\n');
@@ -40,6 +43,7 @@ const MessageHandler = () => {
 
   return (
     <>
+      <ConnectionBanner />
       <Snackbar
         key={`${severity}:${message}`}
         open={hasMessage && !expanded}

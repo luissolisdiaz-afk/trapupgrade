@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
@@ -45,6 +45,9 @@ import { blueGradient, brand } from '../builder/style';
 import useDashboardData from './useDashboardData';
 
 const DAY = 24 * 3600 * 1000;
+// every list of the dashboard shows at most this many rows; critical incidents also expire
+const MAX_ITEMS = 4;
+const CRITICAL_WINDOW = 3600 * 1000;
 const CRITICAL = ['sos', 'powerCut', 'jamming', 'tampering', 'accident', 'removing', 'fault'];
 
 const isTrue = (value) => value === true || value === 'true';
@@ -73,6 +76,13 @@ const Stat = ({ label, value, color }) => (
   </Box>
 );
 
+const More = ({ count, label }) =>
+  count > 0 ? (
+    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', pt: 1 }}>
+      {`+${count} ${label}`}
+    </Typography>
+  ) : null;
+
 const Empty = ({ text }) => (
   <Typography variant="body2" color="textSecondary" sx={{ py: 2 }}>
     {text}
@@ -90,6 +100,14 @@ const DashboardPage = () => {
   const positions = useSelector((state) => state.session.positions);
 
   const [period, setPeriod] = useState('week');
+  const [now, setNow] = useState(() => Date.now());
+
+  // refresh once a minute so old incidents leave the list without reloading the page
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { data, loading, error, truncated } = useDashboardData(period);
 
   const stats = useMemo(() => {
@@ -127,13 +145,36 @@ const DashboardPage = () => {
       units,
       lowBattery: lowBattery.sort((a, b) => a.level - b.level),
       expiring: expiring.sort((a, b) => a.expiration - b.expiration),
-      recent: [...list].sort((a, b) => b.id - a.id).slice(0, 5),
+      recent: [...list].sort((a, b) => b.id - a.id).slice(0, MAX_ITEMS),
     };
   }, [devices, positions]);
 
   const usage = stats.total ? Math.round((data.usedDevices / stats.total) * 100) : 0;
   const deviceName = (id) => devices[id]?.name || id;
-  const critical = data.alarms.filter((e) => CRITICAL.includes(e.attributes?.alarm)).slice(0, 10);
+  const criticalAll = useMemo(() => {
+    // only the last hour; a device repeating the same alarm is shown once with its count
+    const groups = {};
+    data.alarms
+      .filter(
+        (e) =>
+          CRITICAL.includes(e.attributes?.alarm) &&
+          now - new Date(e.eventTime).getTime() <= CRITICAL_WINDOW,
+      )
+      .forEach((e) => {
+        const key = `${e.deviceId}-${e.attributes.alarm}`;
+        const time = new Date(e.eventTime).getTime();
+        if (!groups[key]) {
+          groups[key] = { ...e, count: 1, time };
+        } else {
+          groups[key].count += 1;
+          if (time > groups[key].time) {
+            groups[key] = { ...e, count: groups[key].count, time };
+          }
+        }
+      });
+    return Object.values(groups).sort((a, b) => b.time - a.time);
+  }, [data.alarms, now]);
+  const critical = criticalAll.slice(0, MAX_ITEMS);
 
   const pieData = [
     { name: t('dashOnline'), value: stats.connectivity.online, color: brand.green },
@@ -252,13 +293,14 @@ const DashboardPage = () => {
                   <ListItem key={e.id} disableGutters divider>
                     <ListItemText
                       primary={`${deviceName(e.deviceId)} · ${t(prefixString('alarm', e.attributes.alarm))}`}
-                      secondary={formatTime(e.eventTime, 'seconds')}
+                      secondary={`${formatTime(e.eventTime, 'seconds')}${e.count > 1 ? ` · ${e.count} ${t('dashTimes')}` : ''}`}
                     />
                     <Chip size="small" color="error" label={t(prefixString('alarm', e.attributes.alarm))} />
                   </ListItem>
                 ))}
               </List>
             )}
+            <More count={criticalAll.length - critical.length} label={t('dashMore')} />
           </Panel>
 
           <Panel icon={<BatteryAlertIcon sx={{ color: brand.orange }} />} title={t('dashHardware')}>
@@ -266,7 +308,7 @@ const DashboardPage = () => {
               <Empty text={t('dashNoHardware')} />
             ) : (
               <List dense disablePadding>
-                {stats.lowBattery.slice(0, 8).map(({ device, level }) => (
+                {stats.lowBattery.slice(0, MAX_ITEMS).map(({ device, level }) => (
                   <ListItem key={device.id} disableGutters divider>
                     <ListItemText primary={device.name} secondary={t('dashLowBattery')} />
                     <Chip size="small" color="warning" label={`${level}%`} />
@@ -274,6 +316,7 @@ const DashboardPage = () => {
                 ))}
               </List>
             )}
+            <More count={stats.lowBattery.length - MAX_ITEMS} label={t('dashMore')} />
           </Panel>
 
           <Panel icon={<EventBusyIcon />} title={t('dashExpiring')}>
@@ -281,7 +324,7 @@ const DashboardPage = () => {
               <Empty text={t('dashNoExpiring')} />
             ) : (
               <List dense disablePadding>
-                {stats.expiring.slice(0, 8).map(({ device, expiration, days }) => (
+                {stats.expiring.slice(0, MAX_ITEMS).map(({ device, expiration, days }) => (
                   <ListItem key={device.id} disableGutters divider>
                     <ListItemText
                       primary={device.name}
@@ -296,6 +339,7 @@ const DashboardPage = () => {
                 ))}
               </List>
             )}
+            <More count={stats.expiring.length - MAX_ITEMS} label={t('dashMore')} />
           </Panel>
 
           <Panel icon={<AddIcon />} title={t('dashInstalls')}>

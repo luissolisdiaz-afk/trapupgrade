@@ -7,6 +7,11 @@ const { reducer, actions } = createSlice({
   },
   reducers: {
     push(state, action) {
+      const text = (item) => (typeof item === 'string' ? item : item?.message);
+      // the same error repeated while it is already on screen only adds noise
+      if (state.messages.some((item) => text(item) === text(action.payload))) {
+        return;
+      }
       state.messages.push(action.payload);
     },
     pop(state) {

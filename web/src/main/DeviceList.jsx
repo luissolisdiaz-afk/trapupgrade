@@ -40,10 +40,6 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.secondary,
     whiteSpace: 'nowrap',
   },
-  online: {
-    color: theme.palette.success.main,
-    fontWeight: 600,
-  },
 }));
 
 const GroupHeader = ({ row, style, collapsed, onToggle }) => {
@@ -59,7 +55,6 @@ const GroupHeader = ({ row, style, collapsed, onToggle }) => {
           {row.name}
         </Typography>
         <Typography variant="caption" className={classes.count}>
-          {row.online > 0 && <span className={classes.online}>{row.online} • </span>}
           {row.count}
         </Typography>
       </ListItemButton>
@@ -145,7 +140,6 @@ const DeviceList = ({ devices }) => {
         key,
         name: key === NO_GROUP ? t('groupNoGroup') : groupPath(key),
         count: list.length,
-        online: list.filter((device) => device.status === 'online').length,
       });
       if (!collapsedGroups[key]) {
         list.forEach((device) => result.push({ type: 'device', device }));

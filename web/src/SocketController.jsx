@@ -124,7 +124,7 @@ const SocketController = () => {
       reconnectTimeoutRef.current = setTimeout(() => {
         reconnectTimeoutRef.current = null;
         connectSocketRef.current?.();
-      }, 60000);
+      }, 10000);
     };
 
     socket.onmessage = (event) => {
