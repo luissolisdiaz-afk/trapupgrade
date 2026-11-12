@@ -131,7 +131,7 @@ const DashboardPage = () => {
       else units.active += 1;
 
       const level = positions[device.id]?.attributes?.batteryLevel;
-      if (typeof level === 'number' && level <= 20) {
+      if (device.status === 'online' && typeof level === 'number' && level <= 20) {
         lowBattery.push({ device, level });
       }
       if (expiration != null && expiration >= now && expiration - now <= 30 * DAY) {

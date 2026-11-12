@@ -178,9 +178,11 @@ const DeviceRow = ({ devices, index, style }) => {
         />
         {position && (
           <>
-            <Typography variant="body2" className={classes.speed}>
-              {Math.round(speedFromKnots(position.speed, speedUnit))} {speedUnitString(speedUnit, t)}
-            </Typography>
+            {item.status === 'online' && (
+              <Typography variant="body2" className={classes.speed}>
+                {Math.round(speedFromKnots(position.speed, speedUnit))} {speedUnitString(speedUnit, t)}
+              </Typography>
+            )}
             {position.attributes.hasOwnProperty('alarm') && (
               <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes.alarm, t)}`}>
                 <IconButton size="small">
@@ -188,7 +190,7 @@ const DeviceRow = ({ devices, index, style }) => {
                 </IconButton>
               </Tooltip>
             )}
-            {position.attributes.hasOwnProperty('ignition') && (
+            {item.status === 'online' && position.attributes.hasOwnProperty('ignition') && (
               <Tooltip
                 title={`${t('positionIgnition')}: ${formatBoolean(position.attributes.ignition, t)}`}
               >
@@ -201,7 +203,7 @@ const DeviceRow = ({ devices, index, style }) => {
                 </IconButton>
               </Tooltip>
             )}
-            {position.attributes.hasOwnProperty('batteryLevel') && (
+            {item.status === 'online' && position.attributes.hasOwnProperty('batteryLevel') && (
               <Tooltip
                 title={`${t('positionBatteryLevel')}: ${formatPercentage(position.attributes.batteryLevel)}`}
               >
