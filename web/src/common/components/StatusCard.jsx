@@ -207,6 +207,8 @@ const useStreetAddress = (position) => {
   return address;
 };
 
+const LIVE_KEYS = ['speed', 'batteryLevel', 'battery', 'power', 'rssi', 'ignition', 'motion', 'charge', 'sat', 'hdop', 'blocked', 'alarm'];
+
 const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled }) => (
   <ButtonBase
     onClick={onClick}
@@ -467,7 +469,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   <div className={classes.summary}>
                     <SummaryItem
                       icon={<SpeedIcon />}
-                      primary={`${Math.round(speedFromKnots(position.speed, speedUnit))} ${speedUnitString(speedUnit, t)}`}
+                      primary={
+                        device.status === 'online'
+                          ? `${Math.round(speedFromKnots(position.speed, speedUnit))} ${speedUnitString(speedUnit, t)}`
+                          : '—'
+                      }
                       secondary={t('positionSpeed')}
                     />
                     <SummaryItem
@@ -495,6 +501,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       <TableBody>
                         {positionItems
                           .split(',')
+                          .filter((key) => device.status === 'online' || !LIVE_KEYS.includes(key))
                           .filter(
                             (key) =>
                               position.hasOwnProperty(key) ||
