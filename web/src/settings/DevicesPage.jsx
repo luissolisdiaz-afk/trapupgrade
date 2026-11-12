@@ -114,12 +114,12 @@ const DevicesPage = () => {
             <TableCell>{t('sharedName')}</TableCell>
             <TableCell>{t('deviceIdentifier')}</TableCell>
             <TableCell>{t('groupParent')}</TableCell>
-            <TableCell>{t('sharedPhone')}</TableCell>
+            {administrator && <TableCell>{t('sharedPhone')}</TableCell>}
             <TableCell>{t('deviceModel')}</TableCell>
-            <TableCell>{t('deviceContact')}</TableCell>
+            {administrator && <TableCell>{t('deviceContact')}</TableCell>}
             <TableCell>{t('userExpirationTime')}</TableCell>
             <TableCell>{t('positionAddress')}</TableCell>
-            {manager && <TableCell>{t('settingsUsers')}</TableCell>}
+            {administrator && <TableCell>{t('settingsUsers')}</TableCell>}
             <TableCell className={classes.columnAction} />
           </TableRow>
         </TableHead>
@@ -129,9 +129,9 @@ const DevicesPage = () => {
               <TableCell>{item.name}</TableCell>
               <TableCell>{item.uniqueId}</TableCell>
               <TableCell>{item.groupId ? groups[item.groupId]?.name : null}</TableCell>
-              <TableCell>{item.phone}</TableCell>
+              {administrator && <TableCell>{item.phone}</TableCell>}
               <TableCell>{item.model}</TableCell>
-              <TableCell>{item.contact}</TableCell>
+              {administrator && <TableCell>{item.contact}</TableCell>}
               <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
               <TableCell>
                 {positions[item.id] && (
@@ -142,7 +142,7 @@ const DevicesPage = () => {
                   />
                 )}
               </TableCell>
-              {manager && (
+              {administrator && (
                 <TableCell>
                   <DeviceUsersValue deviceId={item.id} />
                 </TableCell>
@@ -153,7 +153,7 @@ const DevicesPage = () => {
                   editPath="/settings/device"
                   endpoint="devices"
                   onReload={reload}
-                  customActions={[actionConnections]}
+                  customActions={administrator ? [actionConnections] : []}
                   readonly={deviceReadonly}
                   removable={administrator}
                 />
@@ -163,7 +163,7 @@ const DevicesPage = () => {
           {hasMore && (
             <TableShimmer
               ref={items.length > 0 ? sentinelRef : null}
-              columns={manager ? 9 : 8}
+              columns={administrator ? 9 : 6}
               endAction
             />
           )}
@@ -175,7 +175,8 @@ const DevicesPage = () => {
                 {t('reportExport')}
               </Button>
             </TableCell>
-            <TableCell colSpan={manager ? 9 : 8} align="right">
+            <TableCell colSpan={administrator ? 9 : 6} align="right">
+              {administrator && (
               <FormControlLabel
                 control={
                   <Switch
@@ -188,6 +189,7 @@ const DevicesPage = () => {
                 labelPlacement="start"
                 disabled={!manager}
               />
+              )}
             </TableCell>
           </TableRow>
         </TableFooter>
