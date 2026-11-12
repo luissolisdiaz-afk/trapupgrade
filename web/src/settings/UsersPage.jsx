@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LinkIcon from '@mui/icons-material/Link';
+import DevicesIcon from '@mui/icons-material/Devices';
 import { useCatch, useAsyncTask, useScrollToLoad, pageSize } from '../reactHelper';
 import { formatBoolean, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -49,6 +50,13 @@ const UsersPage = () => {
     title: t('loginLogin'),
     icon: <LoginIcon fontSize="small" />,
     handler: handleLogin,
+  };
+
+  const actionDevices = {
+    key: 'devices',
+    title: t('deviceTitle'),
+    icon: <DevicesIcon fontSize="small" />,
+    handler: (userId) => navigate(`/settings/user/${userId}/devices`),
   };
 
   const actionConnections = {
@@ -117,7 +125,7 @@ const UsersPage = () => {
                     editPath="/settings/user"
                     endpoint="users"
                     onReload={reload}
-                    customActions={manager ? [actionLogin, actionConnections] : [actionConnections]}
+                    customActions={manager ? [actionDevices, actionLogin, actionConnections] : [actionConnections]}
                   />
                 </TableCell>
               </TableRow>

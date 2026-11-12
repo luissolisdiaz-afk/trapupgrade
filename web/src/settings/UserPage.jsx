@@ -27,7 +27,6 @@ import CachedIcon from '@mui/icons-material/Cached';
 import CloseIcon from '@mui/icons-material/Close';
 import { useDispatch, useSelector } from 'react-redux';
 import EditItemView from './components/EditItemView';
-import LinkField from '../common/components/LinkField';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import useUserAttributes from '../common/attributes/useUserAttributes';
@@ -314,24 +313,6 @@ const UserPage = () => {
               />
             </AccordionDetails>
           </Accordion>
-          {admin && item.id && (
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1">{t('deviceTitle')}</Typography>
-              </AccordionSummary>
-              <AccordionDetails className={classes.details}>
-                <LinkField
-                  label={t('deviceTitle')}
-                  endpointAll="api/devices?all=true"
-                  endpointLinked={`api/devices?userId=${item.id}`}
-                  baseId={item.id}
-                  keyBase="userId"
-                  keyLink="deviceId"
-                  titleGetter={(it) => `${it.name} (${it.uniqueId})`}
-                />
-              </AccordionDetails>
-            </Accordion>
-          )}
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="subtitle1">{t('sharedLocation')}</Typography>

@@ -59,6 +59,7 @@ const DevicesPage = lazy(() => import('./settings/DevicesPage'));
 const ScheduledPage = lazy(() => import('./reports/ScheduledPage'));
 const DeviceConnectionsPage = lazy(() => import('./settings/DeviceConnectionsPage'));
 const GroupConnectionsPage = lazy(() => import('./settings/GroupConnectionsPage'));
+const UserDevicesPage = lazy(() => import('./settings/UserDevicesPage'));
 const UserConnectionsPage = lazy(() => import('./settings/UserConnectionsPage'));
 const LogsPage = lazy(() => import('./reports/LogsPage'));
 const SharePage = lazy(() => import('./settings/SharePage'));
@@ -227,6 +228,7 @@ const Navigation = () => {
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="server" element={<ServerPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="user/:id/devices" element={<UserDevicesPage />} />
             <Route path="user/:id/connections" element={<UserConnectionsPage />} />
             <Route path="user/:id" element={<UserPage />} />
             <Route path="user" element={<UserPage />} />

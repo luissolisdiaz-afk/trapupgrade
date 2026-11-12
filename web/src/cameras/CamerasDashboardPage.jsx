@@ -78,11 +78,13 @@ const CamerasDashboardPage = () => {
           <Typography variant="h6">
             {t('cameraTitle')} ({cameras.length})
           </Typography>
+          {cameras.length > 0 && (
           <ToggleButtonGroup size="small" exclusive value={cols} onChange={(_, v) => v && setCols(v)}>
             {[1, 2, 3, 4].map((n) => (
               <ToggleButton key={n} value={n}>{n}</ToggleButton>
             ))}
           </ToggleButtonGroup>
+          )}
         </div>
         {!cameras.length && (
           <Typography color="textSecondary">{t('cameraEmptyHint')}</Typography>
