@@ -78,7 +78,7 @@ const ClipPlayer = ({ src, className }) => {
   return <video ref={ref} className={className} controls playsInline muted preload="metadata" />;
 };
 
-const AlarmAttachments = ({ deviceId, label }) => {
+const AlarmAttachments = ({ deviceId, label, inline }) => {
   const { classes } = useStyles();
   const t = useTranslation();
 
@@ -120,7 +120,7 @@ const AlarmAttachments = ({ deviceId, label }) => {
   const videos = (files || []).filter((file) => file.kind === 'video');
 
   return (
-    <Paper className={classes.root} elevation={4}>
+    <Paper className={inline ? undefined : classes.root} elevation={inline ? 0 : 4}>
       <div className={classes.header}>
         <Typography variant="subtitle1" className={classes.title}>
           {t('eventAttachments')}

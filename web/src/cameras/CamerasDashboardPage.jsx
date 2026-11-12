@@ -7,8 +7,8 @@ import PageLayout from '../common/components/PageLayout';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import CamerasMenu from './CamerasMenu';
 import useCameraDevices from './useCameraDevices';
-import useOverspeedEvents from './useOverspeedEvents';
-import OverspeedTable from './OverspeedTable';
+import useCameraEvents from './useCameraEvents';
+import CameraEventsTable from './CameraEventsTable';
 import { formatTime } from '../common/util/formatter';
 
 const useStyles = makeStyles()((theme) => ({
@@ -39,7 +39,7 @@ const CamerasDashboardPage = () => {
   const cameras = useMemo(() => items.filter((it) => it.camera), [items]);
   const ids = useMemo(() => cameras.map((it) => it.device.id).slice(0, 100), [cameras]);
 
-  const [events, , loadEvents] = useOverspeedEvents();
+  const [events, , loadEvents] = useCameraEvents();
 
   useEffect(() => {
     loadEvents(ids, dayjs().subtract(24, 'hour'), dayjs());
@@ -92,16 +92,14 @@ const CamerasDashboardPage = () => {
             </Card>
           ))}
         </div>
-        <Typography variant="h6">{t('cameraSpeeding')} (24 h)</Typography>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6">{`${t('cameraEvents')} (24 h)`}</Typography>
+          <Button size="small" onClick={() => navigate('/cameras/events')}>
+            {t('cameraAllEvents')}
+          </Button>
+        </div>
         <Card>
-          <OverspeedTable
-            events={events}
-            onSelect={(event) =>
-              navigate(
-                `/cameras/recordings?deviceId=${event.deviceId}&at=${encodeURIComponent(event.eventTime)}`,
-              )
-            }
-          />
+          <CameraEventsTable events={events ? events.slice(0, 5) : events} />
         </Card>
       </div>
     </PageLayout>

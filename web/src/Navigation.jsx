@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import MainPage from './main/MainPage';
 import App from './App';
@@ -70,7 +70,7 @@ const ReportBuilderPage = lazy(() => import('./builder/ReportBuilderPage'));
 import CamerasGate from './cameras/CamerasGate';
 import DashboardGate from './dashboard/DashboardGate';
 const CamerasDashboardPage = lazy(() => import('./cameras/CamerasDashboardPage'));
-const CamerasSpeedingPage = lazy(() => import('./cameras/CamerasSpeedingPage'));
+const CamerasEventsPage = lazy(() => import('./cameras/CamerasEventsPage'));
 const AuditPage = lazy(() => import('./reports/AuditPage'));
 
 const Navigation = () => {
@@ -179,13 +179,14 @@ const Navigation = () => {
             }
           />
           <Route
-            path="cameras/speeding"
+            path="cameras/events"
             element={
               <CamerasGate>
-                <CamerasSpeedingPage />
+                <CamerasEventsPage />
               </CamerasGate>
             }
           />
+          <Route path="cameras/speeding" element={<Navigate to="/cameras/events" replace />} />
 
           <Route path="settings">
             <Route path=":type/:id/share" element={<SharePage />} />

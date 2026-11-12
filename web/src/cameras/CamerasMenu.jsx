@@ -1,7 +1,7 @@
 import { Divider, List } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VideocamIcon from '@mui/icons-material/Videocam';
-import SpeedIcon from '@mui/icons-material/Speed';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import MenuItem from '../common/components/MenuItem';
@@ -31,10 +31,10 @@ const CamerasMenu = () => {
           selected={location.pathname === '/cameras/recordings'}
         />
         <MenuItem
-          title={t('cameraSpeeding')}
-          link={link('/cameras/speeding')}
-          icon={<SpeedIcon />}
-          selected={location.pathname === '/cameras/speeding'}
+          title={t('cameraEvents')}
+          link={link('/cameras/events')}
+          icon={<NotificationsActiveIcon />}
+          selected={location.pathname === '/cameras/events'}
         />
       </List>
     </>
