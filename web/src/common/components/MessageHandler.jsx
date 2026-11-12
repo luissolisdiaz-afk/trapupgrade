@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { usePrevious } from '../../reactHelper';
 import { messagesActions } from '../../store';
+import serverErrors from '../util/serverErrors';
 import { useTranslation } from './LocalizationProvider';
 import { snackBarDurationShortMs } from '../util/duration';
 import ConnectionBanner, { isNetworkError, useConnectionMessage } from './ConnectionBanner';
@@ -35,9 +36,11 @@ const MessageHandler = () => {
   const severity = activeMessage?.severity || 'error';
   const { duration = severity === 'error' ? null : snackBarDurationShortMs } = activeMessage || {};
   const multiline = message.includes('\n');
-  const displayMessage = multiline
+  const cleaned = multiline
     ? message.split('\n')[0].replace(/^(?:(?:[\w$]+\.)*[\w$]+(?:Exception|Error)?:\s*)+/i, '')
     : message;
+  const known = serverErrors.find(([text]) => cleaned.trim().startsWith(text));
+  const displayMessage = known ? t(known[1]) : cleaned;
 
   const [expanded, setExpanded] = useState(false);
 
