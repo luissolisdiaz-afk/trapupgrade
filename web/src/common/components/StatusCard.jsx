@@ -752,4 +752,5 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   );
 };
 
+export { useStreetAddress };
 export default StatusCard;

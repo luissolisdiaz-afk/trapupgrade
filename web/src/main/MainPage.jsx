@@ -13,7 +13,7 @@ import MainTopBar from './MainTopBar';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import { useCatch } from '../reactHelper';
-import StatusCard from '../common/components/StatusCard';
+import VehicleCard from './VehicleCard';
 import { devicesActions } from '../store';
 import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
@@ -234,7 +234,7 @@ const MainPage = () => {
         </div>
         <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
         {selectedDeviceId && !features.disableStatusCard && (
-          <StatusCard
+          <VehicleCard
             deviceId={selectedDeviceId}
             position={selectedPosition}
             onClose={() => dispatch(devicesActions.selectId(null))}
@@ -304,7 +304,7 @@ const MainPage = () => {
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
       {selectedDeviceId && !features.disableStatusCard && (
-        <StatusCard
+        <VehicleCard
           deviceId={selectedDeviceId}
           position={selectedPosition}
           onClose={() => dispatch(devicesActions.selectId(null))}
