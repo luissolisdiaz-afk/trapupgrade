@@ -26,6 +26,7 @@ import ShareIcon from '@mui/icons-material/Share';
 import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import SettingsRemoteIcon from '@mui/icons-material/SettingsRemote';
 import ShieldIcon from '@mui/icons-material/Shield';
 import BatteryFullIcon from '@mui/icons-material/BatteryFull';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
@@ -247,13 +248,26 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
     setQuickCommands([]);
     fetchOrThrow(`api/commands/send?deviceId=${deviceId}`, { signal: controller.signal })
       .then((response) => response.json())
-      .then((list) => setQuickCommands(list.filter((it) => it.attributes?.quickAction)))
+      .then((list) => setQuickCommands(list))
       .catch(() => {});
     return () => controller.abort();
   }, [deviceId]);
 
-  const lockCommand = quickCommands.find((it) => it.attributes?.quickActionKind === 'lock');
-  const unlockCommand = quickCommands.find((it) => it.attributes?.quickActionKind === 'unlock');
+  const lockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'lock');
+  const unlockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'unlock');
+  const otherCommands = quickCommands.filter((it) => !it.attributes?.quickAction);
+  const [commandsOpen, setCommandsOpen] = useState(false);
+
+  const sendOther = useCatch(async (command) => {
+    setCommandsOpen(false);
+    const response = await fetchOrThrow('api/commands/send', json('POST', { ...command, deviceId }));
+    dispatch(
+      messagesActions.push({
+        message: t(response.status === 202 ? 'commandQueued' : 'commandSent'),
+        severity: 'success',
+      }),
+    );
+  });
   const hasLock = Boolean(lockCommand && unlockCommand);
   const reportedBlocked = position?.attributes?.blocked;
   let locked = null;
@@ -571,6 +585,15 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
           >
             {t('pvVehicleAlerts')}
           </Button>
+          {otherCommands.length > 0 && (
+            <Button
+              startIcon={<SettingsRemoteIcon />}
+              onClick={() => setCommandsOpen(true)}
+              sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 600 }}
+            >
+              {t('pvMoreCommands')}
+            </Button>
+          )}
         </div>
       </Paper>
 
@@ -604,6 +627,20 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLockDialog(false)}>{t('sharedCancel')}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={commandsOpen} onClose={() => setCommandsOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>{t('pvMoreCommands')}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {otherCommands.map((command) => (
+            <Button key={command.id} variant="outlined" onClick={() => sendOther(command)}>
+              {command.description}
+            </Button>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCommandsOpen(false)}>{t('sharedCancel')}</Button>
         </DialogActions>
       </Dialog>
 

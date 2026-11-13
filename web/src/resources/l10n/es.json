@@ -898,6 +898,7 @@
     "serverError34": "Tus grupos de OpenID no permiten el acceso",
     "serverError36": "La descripción es obligatoria",
     "serverError35": "Ya existe un registro con ese valor (por ejemplo, un IMEI repetido)",
+    "pvMoreCommands": "Más comandos",
     "notificationDevices": "Equipos",
     "speedModeLabel": "Límite de velocidad",
     "speedModeMap": "Usar el límite del mapa",

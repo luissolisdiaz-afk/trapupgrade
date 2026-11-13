@@ -898,6 +898,7 @@
     "serverError34": "Your OpenID Groups do not permit access",
     "serverError36": "Description is required",
     "serverError35": "A record with that value already exists (for example, a duplicate IMEI)",
+    "pvMoreCommands": "More commands",
     "notificationDevices": "Devices",
     "speedModeLabel": "Speed limit",
     "speedModeMap": "Use the map limit",
