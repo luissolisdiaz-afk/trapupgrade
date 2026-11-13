@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 
 import {
   Accordion,
@@ -10,6 +12,8 @@ import {
   FormGroup,
   Button,
   TextField,
+  MenuItem,
+  Autocomplete,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation, useTranslationKeys } from '../common/components/LocalizationProvider';
@@ -17,7 +21,9 @@ import EditItemView from './components/EditItemView';
 import { prefixString, unprefixString } from '../common/util/stringUtils';
 import SelectField from '../common/components/SelectField';
 import SettingsMenu from './components/SettingsMenu';
-import { useCatch } from '../reactHelper';
+import { useCatch, useAsyncTask } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
+import { messagesActions } from '../store';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
@@ -25,7 +31,55 @@ const NotificationPage = () => {
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
+  const dispatch = useDispatch();
+  const admin = useAdministrator();
+  const { id } = useParams();
+
   const [item, setItem] = useState();
+  const [devices, setDevices] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [speedMode, setSpeedMode] = useState('map');
+  const [speedKmh, setSpeedKmh] = useState('');
+
+  useAsyncTask(
+    async ({ signal }) => {
+      if (!id) {
+        const response = await fetchOrThrow(`api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`, {
+          signal,
+        });
+        setDevices(await response.json());
+      }
+    },
+    [id, admin],
+  );
+
+  const jsonBody = (method, body) => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  // Al crear: vincula el evento a los equipos elegidos y, si es exceso de velocidad,
+  // guarda el modo (límite del mapa o velocidad propia) en cada equipo.
+  const onItemSaved = async (notification) => {
+    for (const device of selected) {
+      // eslint-disable-next-line no-await-in-loop
+      await fetchOrThrow('api/permissions', jsonBody('POST', { deviceId: device.id, notificationId: notification.id }));
+      if (notification.type === 'deviceOverspeed') {
+        // eslint-disable-next-line no-await-in-loop
+        const [full] = await (await fetchOrThrow(`api/devices?id=${device.id}`)).json();
+        const attributes = { ...full.attributes, speedLimitMode: speedMode === 'map' ? 'map' : 'fixed' };
+        if (speedMode === 'custom' && Number(speedKmh) > 0) {
+          attributes.speedLimit = Number((Number(speedKmh) / 1.852).toFixed(2));
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await fetchOrThrow(`api/devices/${device.id}`, jsonBody('PUT', { ...full, attributes }));
+      }
+    }
+    if (selected.length) {
+      dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
+    }
+  };
 
   const alarms = useTranslationKeys((it) => it.startsWith('alarm')).map((it) => ({
     key: unprefixString('alarm', it),
@@ -48,7 +102,8 @@ const NotificationPage = () => {
     item &&
     item.type &&
     item.notificators &&
-    (!item.notificators?.includes('command') || item.commandId);
+    (!item.notificators?.includes('command') || item.commandId) &&
+    (item.type !== 'deviceOverspeed' || speedMode === 'map' || Number(speedKmh) > 0 || id);
 
   return (
     <EditItemView
@@ -56,6 +111,7 @@ const NotificationPage = () => {
       item={item}
       setItem={setItem}
       validate={validate}
+      onItemSaved={onItemSaved}
       menu={<SettingsMenu />}
       breadcrumbs={['settingsTitle', 'sharedNotification']}
     >
@@ -79,6 +135,36 @@ const NotificationPage = () => {
                     : null
                 }
               />
+              {!id && (
+                <Autocomplete
+                  multiple
+                  options={devices}
+                  value={selected}
+                  onChange={(_, v) => {
+                    setSelected(v);
+                    if (v.length) setItem({ ...item, always: false });
+                  }}
+                  getOptionLabel={(d) => `${d.name}`}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  renderInput={(params) => <TextField {...params} label={t('notificationDevices')} />}
+                />
+              )}
+              {!id && item.type === 'deviceOverspeed' && (
+                <>
+                  <TextField select value={speedMode} onChange={(e) => setSpeedMode(e.target.value)} label={t('speedModeLabel')}>
+                    <MenuItem value="map">{t('speedModeMap')}</MenuItem>
+                    <MenuItem value="custom">{t('speedModeCustom')}</MenuItem>
+                  </TextField>
+                  {speedMode === 'custom' && (
+                    <TextField
+                      type="number"
+                      value={speedKmh}
+                      onChange={(e) => setSpeedKmh(e.target.value)}
+                      label={`${t('speedLimitValue')} (km/h)`}
+                    />
+                  )}
+                </>
+              )}
               {item.type === 'alarm' && (
                 <SelectField
                   multiple

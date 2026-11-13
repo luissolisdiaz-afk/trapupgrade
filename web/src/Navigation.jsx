@@ -1,3 +1,4 @@
+import { useAdministrator } from './common/util/permissions';
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -37,6 +38,7 @@ const CalendarPage = lazy(() => import('./settings/CalendarPage'));
 const ComputedAttributesPage = lazy(() => import('./settings/ComputedAttributesPage'));
 const ComputedAttributePage = lazy(() => import('./settings/ComputedAttributePage'));
 const MaintenancesPage = lazy(() => import('./settings/MaintenancesPage'));
+const SimpleMaintenancePage = lazy(() => import('./settings/SimpleMaintenancePage'));
 const MaintenancePage = lazy(() => import('./settings/MaintenancePage'));
 const CommandsPage = lazy(() => import('./settings/CommandsPage'));
 const CommandPage = lazy(() => import('./settings/CommandPage'));
@@ -73,6 +75,11 @@ import DashboardGate from './dashboard/DashboardGate';
 const CamerasDashboardPage = lazy(() => import('./cameras/CamerasDashboardPage'));
 const CamerasEventsPage = lazy(() => import('./cameras/CamerasEventsPage'));
 const AuditPage = lazy(() => import('./reports/AuditPage'));
+
+const MaintenanceSwitch = () => {
+  const admin = useAdministrator();
+  return admin ? <MaintenancesPage /> : <SimpleMaintenancePage />;
+};
 
 const Navigation = () => {
   const dispatch = useDispatch();
@@ -218,7 +225,7 @@ const Navigation = () => {
             <Route path="group/:id/command" element={<CommandGroupPage />} />
             <Route path="group/:id" element={<GroupPage />} />
             <Route path="group" element={<GroupPage />} />
-            <Route path="maintenances" element={<MaintenancesPage />} />
+            <Route path="maintenances" element={<MaintenanceSwitch />} />
             <Route path="maintenance/:id" element={<MaintenancePage />} />
             <Route path="maintenance" element={<MaintenancePage />} />
             <Route path="notifications" element={<NotificationsPage />} />

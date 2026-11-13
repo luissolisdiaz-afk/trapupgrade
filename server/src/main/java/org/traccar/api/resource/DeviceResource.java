@@ -95,6 +95,9 @@ public class DeviceResource extends BaseObjectResource<Device> {
         return super.add(entity);
     }
 
+    private static final java.util.List<String> CLIENT_ATTRIBUTES =
+            java.util.List.of("deviceImage", "plate", "speedLimit", "speedLimitMode");
+
     @Override
     public Response update(Device entity) throws Exception {
         if (!permissionsService.getUser(getUserId()).getAdministrator()) {
@@ -111,11 +114,13 @@ public class DeviceResource extends BaseObjectResource<Device> {
                 entity.setDisabled(current.getDisabled());
                 entity.setCalendarId(current.getCalendarId());
                 var attributes = new AttributeMap(current.getAttributes());
-                Object image = entity.getAttributes().get("deviceImage");
-                if (image != null) {
-                    attributes.put("deviceImage", image);
-                } else {
-                    attributes.remove("deviceImage");
+                for (String key : CLIENT_ATTRIBUTES) {
+                    Object value = entity.getAttributes().get(key);
+                    if (value != null) {
+                        attributes.put(key, value);
+                    } else {
+                        attributes.remove(key);
+                    }
                 }
                 entity.setAttributes(attributes);
             }
@@ -203,6 +208,13 @@ public class DeviceResource extends BaseObjectResource<Device> {
     public Response updateAccumulators(DeviceAccumulators entity) throws Exception {
         permissionsService.checkPermission(Device.class, getUserId(), entity.getDeviceId());
         permissionsService.checkEdit(getUserId(), Device.class, false, false);
+        if (!permissionsService.getUser(getUserId()).getAdministrator()) {
+            Device target = storage.getObject(Device.class, new Request(
+                    new Columns.All(), new Condition.Equals("id", entity.getDeviceId())));
+            if (target == null || !target.getBoolean("allowOdometer")) {
+                throw new SecurityException("Odometer editing is not enabled for this device");
+            }
+        }
 
         Position position = storage.getObject(Position.class, new Request(
                 new Columns.All(), new Condition.LatestPositions(entity.getDeviceId())));

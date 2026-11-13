@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionSummary,
@@ -7,12 +7,14 @@ import {
   Typography,
   FormControlLabel,
   Checkbox,
+  Switch,
   TextField,
   Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileInput from '../common/components/FileInput';
 import EditItemView from './components/EditItemView';
+import EngineLockSetup from './components/EngineLockSetup';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import SelectField from '../common/components/SelectField';
 import deviceCategories from '../common/util/deviceCategories';
@@ -30,6 +32,7 @@ const DevicePage = () => {
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
+  const navigate = useNavigate();
   const manager = useManager();
   const admin = useAdministrator();
 
@@ -135,6 +138,13 @@ const DevicePage = () => {
                   .sort((a, b) => a.name.localeCompare(b.name))}
                 label={t('deviceCategory')}
               />
+              <TextField
+                value={item.attributes?.plate || ''}
+                onChange={(e) =>
+                  setItem({ ...item, attributes: { ...item.attributes, plate: e.target.value.toUpperCase() } })
+                }
+                label={t('devicePlate')}
+              />
               {admin && (
               <SelectField
                 value={item.calendarId}
@@ -187,6 +197,41 @@ const DevicePage = () => {
                 />
               </AccordionDetails>
             </Accordion>
+          )}
+          {admin && item.id && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('lockMethod')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <EngineLockSetup deviceId={item.id} deviceName={item.name} />
+              </AccordionDetails>
+            </Accordion>
+          )}
+          {admin && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('sharedDeviceAccumulators')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(item.attributes?.allowOdometer)}
+                      onChange={(e) =>
+                        setItem({ ...item, attributes: { ...item.attributes, allowOdometer: e.target.checked } })
+                      }
+                    />
+                  }
+                  label={t('deviceAllowOdometer')}
+                />
+              </AccordionDetails>
+            </Accordion>
+          )}
+          {item.id && (admin || item.attributes?.allowOdometer) && (
+            <Button variant="outlined" onClick={() => navigate(`/settings/accumulators/${item.id}`)}>
+              {t('deviceEditOdometer')}
+            </Button>
           )}
           {admin && (
           <EditAttributesAccordion

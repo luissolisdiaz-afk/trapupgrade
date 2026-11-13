@@ -68,6 +68,19 @@ const UserDevicesPage = () => {
   const add = useCatchCallback(async () => {
     if (!selected) return;
     await post('POST', id, selected.id);
+    // comandos de corte de motor del equipo: también para este usuario
+    const commands = await (await fetchOrThrow(`api/commands?deviceId=${selected.id}`)).json();
+    await Promise.all(
+      commands
+        .filter((c) => c.attributes?.autoDevice)
+        .map((c) =>
+          fetchOrThrow('api/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: Number(id), commandId: c.id }),
+          }).catch(() => {}),
+        ),
+    );
     setSelected(null);
     setVersion((v) => v + 1);
     dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
