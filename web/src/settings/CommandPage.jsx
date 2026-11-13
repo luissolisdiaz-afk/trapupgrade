@@ -19,7 +19,7 @@ const CommandPage = () => {
 
   const [item, setItem] = useState();
 
-  const validate = () => item && item.type;
+  const validate = () => item && item.type && item.description;
 
   return (
     <EditItemView

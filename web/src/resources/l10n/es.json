@@ -896,6 +896,7 @@
     "serverError32": "No tienes permiso para modificar",
     "serverError33": "OpenID no está habilitado",
     "serverError34": "Tus grupos de OpenID no permiten el acceso",
+    "serverError36": "La descripción es obligatoria",
     "serverError35": "Ya existe un registro con ese valor (por ejemplo, un IMEI repetido)",
     "pvOffline": "Sin conexión",
     "pvIdle": "Motor encendido",

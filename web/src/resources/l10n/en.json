@@ -896,6 +896,7 @@
     "serverError32": "Write access denied",
     "serverError33": "OpenID not enabled",
     "serverError34": "Your OpenID Groups do not permit access",
+    "serverError36": "Description is required",
     "serverError35": "A record with that value already exists (for example, a duplicate IMEI)",
     "pvOffline": "Offline",
     "pvIdle": "Engine on",

@@ -37,4 +37,5 @@ export default [
   ["Your OpenID Groups do not permit access", 'serverError34'],
   ["Duplicate entry", 'serverError35'],
   ["Unique index or primary key violation", 'serverError35'],
+  ['NULL not allowed for column "DESCRIPTION"', 'serverError36'],
 ];
