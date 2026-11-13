@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionSummary,
@@ -8,6 +9,7 @@ import {
   TextField,
   FormControlLabel,
   Checkbox,
+  Autocomplete,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditItemView from './components/EditItemView';
@@ -18,6 +20,9 @@ import SettingsMenu from './components/SettingsMenu';
 import SelectField from '../common/components/SelectField';
 import { geofencesActions } from '../store';
 import useSettingsStyles from './common/useSettingsStyles';
+import { useAsyncTask } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
+import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const GeofencePage = () => {
   const { classes } = useSettingsStyles();
@@ -26,10 +31,54 @@ const GeofencePage = () => {
 
   const geofenceAttributes = useGeofenceAttributes(t);
 
-  const [item, setItem] = useState();
+  const admin = useAdministrator();
+  const { id } = useParams();
 
-  const onItemSaved = (result) => {
+  const [item, setItem] = useState();
+  const [devices, setDevices] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [initial, setInitial] = useState([]);
+
+  // equipos disponibles y los que ya tienen esta geocerca
+  useAsyncTask(
+    async ({ signal }) => {
+      const response = await fetchOrThrow(`api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`, { signal });
+      const list = await response.json();
+      setDevices(list);
+      if (id) {
+        const linked = [];
+        await Promise.all(
+          list.map(async (device) => {
+            const r = await fetchOrThrow(`api/geofences?deviceId=${device.id}`, { signal });
+            if ((await r.json()).some((g) => String(g.id) === String(id))) linked.push(device);
+          }),
+        );
+        setSelected(linked);
+        setInitial(linked);
+      }
+    },
+    [id, admin],
+  );
+
+  const permission = (method, deviceId, geofenceId) =>
+    fetchOrThrow('api/permissions', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, geofenceId }),
+    });
+
+  const onItemSaved = async (result) => {
     dispatch(geofencesActions.update([result]));
+    const before = initial.map((d) => d.id);
+    const after = selected.map((d) => d.id);
+    for (const deviceId of after.filter((d) => !before.includes(d))) {
+      // eslint-disable-next-line no-await-in-loop
+      await permission('POST', deviceId, result.id);
+    }
+    for (const deviceId of before.filter((d) => !after.includes(d))) {
+      // eslint-disable-next-line no-await-in-loop
+      await permission('DELETE', deviceId, result.id);
+    }
   };
 
   const validate = () => item && item.name;
@@ -55,6 +104,15 @@ const GeofencePage = () => {
                 value={item.name || ''}
                 onChange={(event) => setItem({ ...item, name: event.target.value })}
                 label={t('sharedName')}
+              />
+              <Autocomplete
+                multiple
+                options={devices}
+                value={selected}
+                onChange={(_, v) => setSelected(v)}
+                getOptionLabel={(d) => d.name}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => <TextField {...params} label={t('notificationDevices')} />}
               />
             </AccordionDetails>
           </Accordion>
