@@ -16,6 +16,17 @@ export const COMMAND_CATALOG = {
     ['Iniciar video', 'videoStart'],
     ['Detener video', 'videoStop'],
   ],
+  // Comandos de texto del Seeworld R12L (GT06): se envían como comando personalizado.
+  r12l: [
+    ['Activar alarma de vibración (R12L)', 'custom', 'SENALM,ON,0#'],
+    ['Desactivar alarma de vibración (R12L)', 'custom', 'SENALM,OFF#'],
+    ['Activar alarma de corte de alimentación (R12L)', 'custom', 'POWERALM,ON,0#'],
+    ['Desactivar alarma de corte de alimentación (R12L)', 'custom', 'POWERALM,OFF#'],
+    ['Activar alarma de ACC (R12L)', 'custom', 'ACCALM,ON,3,0#'],
+    ['Desactivar alarma de ACC (R12L)', 'custom', 'ACCALM,OFF#'],
+    ['Consultar estado (R12L)', 'custom', 'STATUS#'],
+    ['Reiniciar equipo (R12L)', 'custom', 'RESET#'],
+  ],
   empresa: [
     ['Enviar posiciones periódicamente', 'positionPeriodic'],
     ['Establecer odómetro', 'setOdometer'],

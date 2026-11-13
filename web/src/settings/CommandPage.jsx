@@ -68,8 +68,13 @@ const CommandPage = () => {
   };
 
   const pickCatalog = (type) => {
-    const entry = COMMAND_CATALOG[profile].find((it) => it[1] === type);
-    setItem({ ...item, type, attributes: {}, description: entry ? entry[0] : item.description });
+    const entry = COMMAND_CATALOG[profile].find((it) => it[0] === type);
+    setItem({
+      ...item,
+      type: entry[1],
+      attributes: entry[2] ? { data: entry[2] } : {},
+      description: entry[0],
+    });
   };
 
   return (
@@ -98,16 +103,17 @@ const CommandPage = () => {
                 <TextField select value={profile} onChange={(e) => setProfile(e.target.value)} label={t('commandProfile')}>
                   <MenuItem value="particular">{t('clientParticular')}</MenuItem>
                   <MenuItem value="empresa">{t('clientCompany')}</MenuItem>
+                  <MenuItem value="r12l">Seeworld R12L (texto)</MenuItem>
                 </TextField>
                 {profile && (
                   <TextField
                     select
-                    value={COMMAND_CATALOG[profile].some((it) => it[1] === item.type) ? item.type : ''}
+                    value={COMMAND_CATALOG[profile].some((it) => it[0] === item.description) ? item.description : ''}
                     onChange={(e) => pickCatalog(e.target.value)}
                     label={t('commandCatalog')}
                   >
-                    {COMMAND_CATALOG[profile].map(([label, type]) => (
-                      <MenuItem key={type} value={type}>{label}</MenuItem>
+                    {COMMAND_CATALOG[profile].map(([label]) => (
+                      <MenuItem key={label} value={label}>{label}</MenuItem>
                     ))}
                   </TextField>
                 )}
