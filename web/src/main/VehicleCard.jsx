@@ -10,8 +10,8 @@ const VehicleCard = (props) => {
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const clientType = useClientType();
-  const personal = !desktop && clientType === 'particular';
-  return personal ? <PersonalVehicleSheet {...props} /> : <StatusCard {...props} />;
+  const personal = clientType === 'particular';
+  return personal ? <PersonalVehicleSheet {...props} desktop={desktop} /> : <StatusCard {...props} />;
 };
 
 export default VehicleCard;

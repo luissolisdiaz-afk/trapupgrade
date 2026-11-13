@@ -138,7 +138,7 @@ const ActionTile = ({ icon, label, onClick, disabled, color }) => (
   </ButtonBase>
 );
 
-const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
+const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
   const { classes } = useStyles();
   const t = useTranslation();
   const dispatch = useDispatch();
@@ -450,7 +450,15 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
 
   return (
     <>
-      <Paper elevation={8} className={classes.root}>
+      <Paper
+        elevation={8}
+        className={classes.root}
+        style={
+          desktop
+            ? { left: 'auto', right: 24, bottom: 24, width: 400, borderRadius: 20 }
+            : undefined
+        }
+      >
         <div className={classes.grabber} />
 
         {/* 1. identificación y ubicación */}
