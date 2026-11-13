@@ -115,7 +115,7 @@ const UserDevicesPage = () => {
           <Button variant="contained" disabled={!selected} onClick={add}>
             {t('sharedAdd')}
           </Button>
-          <Button variant="outlined" onClick={() => navigate('/settings/device')}>
+          <Button variant="outlined" onClick={() => navigate(`/settings/device?userId=${id}`)}>
             {t('sharedCreateDevice')}
           </Button>
         </Paper>

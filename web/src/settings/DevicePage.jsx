@@ -41,6 +41,18 @@ const DevicePage = () => {
 
   const [searchParams] = useSearchParams();
   const uniqueId = searchParams.get('uniqueId');
+  const ownerId = searchParams.get('userId');
+
+  // Equipo creado desde la página de equipos de un usuario: se le asigna al guardar.
+  const onItemSaved = async (device) => {
+    if (ownerId && admin) {
+      await fetchOrThrow('api/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: Number(ownerId), deviceId: device.id }),
+      });
+    }
+  };
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [showQr, setShowQr] = useState(false);
@@ -69,6 +81,7 @@ const DevicePage = () => {
       item={item}
       setItem={setItem}
       validate={validate}
+      onItemSaved={onItemSaved}
       menu={<SettingsMenu />}
       breadcrumbs={['settingsTitle', 'sharedDevice']}
     >
