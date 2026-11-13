@@ -94,14 +94,31 @@ const SocketController = () => {
     const socket = new WebSocket(url);
     socketRef.current = socket;
 
+    // si la conexión queda colgada (servidor reiniciando, proxy), se cierra para reintentar
+    const connectTimeout = setTimeout(() => {
+      if (socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
+    }, 8000);
+
     socket.onopen = () => {
+      clearTimeout(connectTimeout);
       dispatch(sessionActions.updateSocket(true));
       socket.send(JSON.stringify({ logs: includeLogsRef.current }));
     };
 
     socket.onclose = async (event) => {
+      clearTimeout(connectTimeout);
+      // un socket antiguo cerrado por una reconexión no debe marcar la conexión como caída
+      if (socketRef.current !== socket) return;
       dispatch(sessionActions.updateSocket(false));
       if (event.code === logoutCode) return;
+      // el reintento se programa primero: no depende de que respondan las consultas siguientes
+      clearReconnectTimeout();
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null;
+        connectSocketRef.current?.();
+      }, 5000);
       try {
         const devicesResponse = await fetch('api/devices');
         if (socketRef.current !== socket) return;
@@ -119,12 +136,6 @@ const SocketController = () => {
       } catch {
         // ignore errors
       }
-      if (socketRef.current !== socket) return;
-      clearReconnectTimeout();
-      reconnectTimeoutRef.current = setTimeout(() => {
-        reconnectTimeoutRef.current = null;
-        connectSocketRef.current?.();
-      }, 10000);
     };
 
     socket.onmessage = (event) => {
