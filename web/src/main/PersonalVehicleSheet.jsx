@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
 import PlaceIcon from '@mui/icons-material/Place';
 import ShareIcon from '@mui/icons-material/Share';
 import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
@@ -246,6 +247,11 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
     }
     const controller = new AbortController();
     setQuickCommands([]);
+    setAssigned([]);
+    fetchOrThrow(`api/commands?deviceId=${deviceId}`, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((list) => setAssigned(list))
+      .catch(() => {});
     fetchOrThrow(`api/commands/send?deviceId=${deviceId}`, { signal: controller.signal })
       .then((response) => response.json())
       .then((list) => setQuickCommands(list))
@@ -255,7 +261,8 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
 
   const lockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'lock');
   const unlockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'unlock');
-  const otherCommands = quickCommands.filter((it) => !it.attributes?.quickAction);
+  const [assigned, setAssigned] = useState([]);
+  const otherCommands = assigned.filter((it) => !it.attributes?.quickAction && !it.attributes?.autoDevice);
   const [commandsOpen, setCommandsOpen] = useState(false);
 
   const sendOther = useCatch(async (command) => {
@@ -475,6 +482,9 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
               />
             )}
           </Box>
+          <IconButton size="small" onClick={() => navigate(`/settings/device/${deviceId}`)}>
+            <EditIcon />
+          </IconButton>
           <IconButton size="small" onClick={onClose} onTouchStart={onClose}>
             <CloseIcon />
           </IconButton>
@@ -593,15 +603,13 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
           >
             {t('pvVehicleAlerts')}
           </Button>
-          {otherCommands.length > 0 && (
-            <Button
-              startIcon={<SettingsRemoteIcon />}
-              onClick={() => setCommandsOpen(true)}
-              sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 600 }}
-            >
-              {t('pvMoreCommands')}
-            </Button>
-          )}
+          <Button
+            startIcon={<SettingsRemoteIcon />}
+            onClick={() => setCommandsOpen(true)}
+            sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 600 }}
+          >
+            {t('pvMoreCommands')}
+          </Button>
         </div>
       </Paper>
 
@@ -641,6 +649,11 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
       <Dialog open={commandsOpen} onClose={() => setCommandsOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>{t('pvMoreCommands')}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {otherCommands.length === 0 && (
+            <Typography variant="body2" color="textSecondary">
+              {t('pvNoCommands')}
+            </Typography>
+          )}
           {otherCommands.map((command) => (
             <Button key={command.id} variant="outlined" onClick={() => sendOther(command)}>
               {command.description}

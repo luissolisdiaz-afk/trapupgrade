@@ -115,8 +115,9 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
           type="date"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          label={`Fecha de vencimiento (aviso ${WARN_DAYS} días antes)`}
-          InputLabelProps={{ shrink: true }}
+          label="Fecha de vencimiento"
+          helperText={`Te avisaremos ${WARN_DAYS} días antes y se repite cada año`}
+          slotProps={{ inputLabel: { shrink: true } }}
         />
       ) : (
         <TextField
