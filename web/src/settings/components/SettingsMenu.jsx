@@ -136,7 +136,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith('/settings/maintenance')}
               />
             )}
-            {!features.disableSavedCommands && (
+            {admin && !features.disableSavedCommands && (
               <MenuItem
                 title={t('sharedSavedCommands')}
                 link="/settings/commands"
@@ -144,7 +144,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith('/settings/command')}
               />
             )}
-            {!features.disableComputedAttributes && (
+            {admin && !features.disableComputedAttributes && (
               <MenuItem
                 title={t('sharedComputedAttributes')}
                 link="/settings/attributes"
