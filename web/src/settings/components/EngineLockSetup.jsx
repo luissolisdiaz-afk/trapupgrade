@@ -14,10 +14,43 @@ const json = (method, body) => ({
 
 const link = (body) => fetchOrThrow('api/permissions', json('POST', body));
 
+// Crea (o reemplaza) los comandos de corte/habilitación de un equipo y los asigna al equipo y a sus usuarios.
+export const applyEngineLock = async ({ deviceId, deviceName, method, lockData, unlockData, current = [] }) => {
+  await Promise.all(current.map((c) => fetchOrThrow(`api/commands/${c.id}`, { method: 'DELETE' })));
+  if (method === 'none') return;
+  const make = (kind) => {
+    const base = {
+      description: `${kind === 'lock' ? 'Corte de motor' : 'Desbloqueo de motor'} - ${deviceName}`,
+      textChannel: false,
+    };
+    const attributes = { quickAction: true, quickActionKind: kind, autoDevice: deviceId };
+    if (method === 'traccar') {
+      return { ...base, type: kind === 'lock' ? 'engineStop' : 'engineResume', attributes };
+    }
+    const data =
+      method === 'relay' ? (kind === 'lock' ? 'Relay,1#' : 'Relay,0#') : kind === 'lock' ? lockData : unlockData;
+    return { ...base, type: 'custom', attributes: { ...attributes, data } };
+  };
+  const users = await (await fetchOrThrow(`api/users?deviceId=${deviceId}`)).json();
+  const created = [];
+  for (const body of [make('lock'), make('unlock')]) {
+    // eslint-disable-next-line no-await-in-loop
+    created.push(await (await fetchOrThrow('api/commands', json('POST', body))).json());
+  }
+  for (const command of created) {
+    // eslint-disable-next-line no-await-in-loop
+    await link({ deviceId, commandId: command.id });
+    for (const user of users) {
+      // eslint-disable-next-line no-await-in-loop
+      await link({ userId: user.id, commandId: command.id }).catch(() => {});
+    }
+  }
+};
+
 // Método de corte de motor de un equipo (solo administrador).
 // Crea los dos comandos rápidos (cortar / habilitar), los vincula al equipo
 // y a todos los usuarios del equipo.
-const EngineLockSetup = ({ deviceId, deviceName }) => {
+const EngineLockSetup = ({ deviceId, deviceName, onChange }) => {
   const t = useTranslation();
   const dispatch = useDispatch();
 
@@ -27,6 +60,7 @@ const EngineLockSetup = ({ deviceId, deviceName }) => {
   const [current, setCurrent] = useState([]);
 
   const load = useCatch(async () => {
+    if (!deviceId) return;
     const list = await (await fetchOrThrow(`api/commands?deviceId=${deviceId}`)).json();
     const auto = list.filter((c) => String(c.attributes?.autoDevice) === String(deviceId));
     setCurrent(auto);
@@ -49,39 +83,12 @@ const EngineLockSetup = ({ deviceId, deviceName }) => {
     load();
   }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (onChange) onChange({ method, lockData, unlockData });
+  }, [method, lockData, unlockData]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const apply = useCatch(async () => {
-    // quitar los anteriores
-    await Promise.all(current.map((c) => fetchOrThrow(`api/commands/${c.id}`, { method: 'DELETE' })));
-    if (method !== 'none') {
-      const make = (kind) => {
-        const base = {
-          description: `${kind === 'lock' ? 'Corte de motor' : 'Desbloqueo de motor'} - ${deviceName}`,
-          textChannel: false,
-        };
-        const attributes = { quickAction: true, quickActionKind: kind, autoDevice: deviceId };
-        if (method === 'traccar') {
-          return { ...base, type: kind === 'lock' ? 'engineStop' : 'engineResume', attributes };
-        }
-        const data =
-          method === 'relay' ? (kind === 'lock' ? 'Relay,1#' : 'Relay,0#') : kind === 'lock' ? lockData : unlockData;
-        return { ...base, type: 'custom', attributes: { ...attributes, data } };
-      };
-      const users = await (await fetchOrThrow(`api/users?deviceId=${deviceId}`)).json();
-      const created = [];
-      for (const body of [make('lock'), make('unlock')]) {
-        // eslint-disable-next-line no-await-in-loop
-        const command = await (await fetchOrThrow('api/commands', json('POST', body))).json();
-        created.push(command);
-      }
-      for (const command of created) {
-        // eslint-disable-next-line no-await-in-loop
-        await link({ deviceId, commandId: command.id });
-        for (const user of users) {
-          // eslint-disable-next-line no-await-in-loop
-          await link({ userId: user.id, commandId: command.id }).catch(() => {});
-        }
-      }
-    }
+    await applyEngineLock({ deviceId, deviceName, method, lockData, unlockData, current });
     dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
     load();
   });
@@ -103,9 +110,11 @@ const EngineLockSetup = ({ deviceId, deviceName }) => {
       <Typography variant="caption" color="textSecondary">
         {t('lockHint')}
       </Typography>
-      <Button variant="outlined" onClick={apply}>
-        {t('lockApply')}
-      </Button>
+      {deviceId && (
+        <Button variant="outlined" onClick={apply}>
+          {t('lockApply')}
+        </Button>
+      )}
     </>
   );
 };

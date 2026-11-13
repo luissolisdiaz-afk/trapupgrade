@@ -14,7 +14,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileInput from '../common/components/FileInput';
 import EditItemView from './components/EditItemView';
-import EngineLockSetup from './components/EngineLockSetup';
+import EngineLockSetup, { applyEngineLock } from './components/EngineLockSetup';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import SelectField from '../common/components/SelectField';
 import deviceCategories from '../common/util/deviceCategories';
@@ -52,10 +52,15 @@ const DevicePage = () => {
         body: JSON.stringify({ userId: Number(ownerId), deviceId: device.id }),
       });
     }
+    // equipo nuevo: aplicar el método de corte elegido
+    if (admin && !item?.id && lockConfig.method !== 'none') {
+      await applyEngineLock({ deviceId: device.id, deviceName: device.name, ...lockConfig });
+    }
   };
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [showQr, setShowQr] = useState(false);
+  const [lockConfig, setLockConfig] = useState({ method: 'none', lockData: 'Relay,1#', unlockData: 'Relay,0#' });
   const [imageFile, setImageFile] = useState(null);
 
   const handleFileInput = useCatch(async (newFile) => {
@@ -211,13 +216,13 @@ const DevicePage = () => {
               </AccordionDetails>
             </Accordion>
           )}
-          {admin && item.id && (
+          {admin && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant="subtitle1">{t('lockMethod')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <EngineLockSetup deviceId={item.id} deviceName={item.name} />
+                <EngineLockSetup deviceId={item.id} deviceName={item.name} onChange={setLockConfig} />
               </AccordionDetails>
             </Accordion>
           )}
