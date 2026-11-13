@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Autocomplete,
   Button,
@@ -44,6 +44,8 @@ const UserDevicesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
+  const currentUserId = useSelector((state) => state.session.user.id);
+  const myId = useSelector((state) => state.session.user.id);
 
   const [all, setAll] = useState([]);
   const [linked, setLinked] = useState([]);
@@ -68,6 +70,8 @@ const UserDevicesPage = () => {
   const add = useCatchCallback(async () => {
     if (!selected) return;
     await post('POST', id, selected.id);
+    // el equipo es exclusivo del cliente: se quita del administrador
+    if (Number(id) !== myId) await post('DELETE', myId, selected.id).catch(() => {});
     // comandos de corte de motor del equipo: también para este usuario
     const commands = await (await fetchOrThrow(`api/commands?deviceId=${selected.id}`)).json();
     await Promise.all(
@@ -81,10 +85,14 @@ const UserDevicesPage = () => {
           }).catch(() => {}),
         ),
     );
+    // el equipo es exclusivo del cliente: se quita de la cuenta del administrador
+    if (Number(id) !== currentUserId) {
+      await post('DELETE', currentUserId, selected.id).catch(() => {});
+    }
     setSelected(null);
     setVersion((v) => v + 1);
     dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
-  }, [selected, id]);
+  }, [selected, id, currentUserId]);
 
   const remove = useCatchCallback(
     async (deviceId) => {

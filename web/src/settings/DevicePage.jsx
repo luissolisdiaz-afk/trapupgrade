@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   Accordion,
   AccordionSummary,
@@ -42,6 +43,8 @@ const DevicePage = () => {
   const [searchParams] = useSearchParams();
   const uniqueId = searchParams.get('uniqueId');
   const ownerId = searchParams.get('userId');
+  const currentUserId = useSelector((state) => state.session.user.id);
+  const myId = useSelector((state) => state.session.user.id);
 
   // Equipo creado desde la página de equipos de un usuario: se le asigna al guardar.
   const onItemSaved = async (device) => {
@@ -55,6 +58,14 @@ const DevicePage = () => {
     // equipo nuevo: aplicar el método de corte elegido
     if (admin && !item?.id && lockConfig.method !== 'none') {
       await applyEngineLock({ deviceId: device.id, deviceName: device.name, ...lockConfig });
+    }
+    // el equipo es exclusivo del cliente: se quita del administrador que lo creó
+    if (ownerId && admin && Number(ownerId) !== myId) {
+      await fetchOrThrow('api/permissions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: myId, deviceId: device.id }),
+      }).catch(() => {});
     }
   };
 
