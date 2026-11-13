@@ -150,7 +150,10 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose }) => {
   const lockMaxSpeed =
     Number(useSelector((state) => state.session.server.attributes['ui.lockMaxSpeed'])) || 0;
 
-  const address = useStreetAddress(position);
+  const fullAddress = useStreetAddress(position);
+  const address = fullAddress
+    ?.replace(/,\s*Regi[oó]n\s[^,]*(,[^,]*)*$/i, '')
+    .replace(/,\s*(CL|Chile)$/i, '');
   const online = device?.status === 'online';
 
   const [now, setNow] = useState(Date.now());
