@@ -54,6 +54,7 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
     return existing.period / (existing.type === 'hours' ? HOUR : 1000);
   };
   const [value, setValue] = useState(initial());
+  const [repeatDays, setRepeatDays] = useState(existing?.type === 'fixTime' ? Math.round(existing.period / DAY) : 365);
 
   const remove = async () => {
     if (existing) await fetchOrThrow(`api/maintenance/${existing.id}`, { method: 'DELETE' });
@@ -64,7 +65,7 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
     let body;
     if (kind === 'date') {
       const due = new Date(`${value}T12:00:00`).getTime();
-      body = { type: 'fixTime', start: due - WARN_DAYS * DAY, period: 365 * DAY };
+      body = { type: 'fixTime', start: due - WARN_DAYS * DAY, period: repeatDays * DAY };
     } else if (kind === 'hours') {
       const period = Number(value) * HOUR;
       body = { type: 'hours', start: (position?.attributes?.hours || 0) + period, period };
@@ -116,9 +117,17 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           label="Fecha de vencimiento"
-          helperText={`Te avisaremos ${WARN_DAYS} días antes y se repite cada año`}
+          helperText={`Te avisaremos ${WARN_DAYS} días antes de la fecha`}
           slotProps={{ inputLabel: { shrink: true } }}
         />
+      ) : null}
+      {kind === 'date' ? (
+        <TextField select size="small" value={repeatDays} onChange={(e) => setRepeatDays(e.target.value)} label="Se repite cada">
+          <MenuItem value={91}>3 meses</MenuItem>
+          <MenuItem value={182}>6 meses</MenuItem>
+          <MenuItem value={365}>1 año</MenuItem>
+          <MenuItem value={730}>2 años</MenuItem>
+        </TextField>
       ) : (
         <TextField
           size="small"
