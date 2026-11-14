@@ -294,6 +294,10 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     'fixTime,address,speed,totalDistance',
   );
 
+  const shownKeys = positionItems.split(',').map((key) => key.trim()).filter(Boolean);
+  const inSummary = (key) => shownKeys.includes(key);
+  const SUMMARY_KEYS = ['speed', 'fixTime', 'address'];
+
   const navigationAppLink = useAttributePreference('navigationAppLink');
   const navigationAppTitle = useAttributePreference('navigationAppTitle');
 
@@ -445,9 +449,16 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 <Avatar sx={{ bgcolor: device.status === 'online' ? '#2e9e44' : '#9e9e9e' }}>
                   <img className={classes.icon} src={mapIcons[mapIconKey(device.category)]} alt="" />
                 </Avatar>
-                <Typography variant="h6" fontWeight={700} noWrap sx={{ flex: 1 }}>
-                  {device.name}
-                </Typography>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="h6" fontWeight={700} noWrap>
+                    {device.name}
+                  </Typography>
+                  {device.attributes?.plate && (
+                    <Typography variant="caption" color="text.secondary" noWrap component="div">
+                      {device.attributes.plate}
+                    </Typography>
+                  )}
+                </div>
                 <Chip
                   size="small"
                   color={simpleState.color}
@@ -467,29 +478,35 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
               {position && (
                 <CardContent className={classes.content}>
                   <div className={classes.summary}>
-                    <SummaryItem
-                      icon={<SpeedIcon />}
-                      primary={
-                        device.status === 'online'
-                          ? `${Math.round(speedFromKnots(position.speed, speedUnit))} ${speedUnitString(speedUnit, t)}`
-                          : '—'
-                      }
-                      secondary={t('positionSpeed')}
-                    />
-                    <SummaryItem
-                      icon={<AccessTimeIcon />}
-                      primary={formatTime(device.lastUpdate || position.fixTime, 'minutes')}
-                      secondary={t('mainLastSignal')}
-                    />
-                    <SummaryItem
-                      icon={<NearMeIcon />}
-                      primary={
-                        streetAddress ||
-                        `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`
-                      }
-                      secondary={t('positionAddress')}
-                      wide
-                    />
+                    {inSummary('speed') && (
+                      <SummaryItem
+                        icon={<SpeedIcon />}
+                        primary={
+                          device.status === 'online'
+                            ? `${Math.round(speedFromKnots(position.speed, speedUnit))} ${speedUnitString(speedUnit, t)}`
+                            : '—'
+                        }
+                        secondary={t('positionSpeed')}
+                      />
+                    )}
+                    {inSummary('fixTime') && (
+                      <SummaryItem
+                        icon={<AccessTimeIcon />}
+                        primary={formatTime(device.lastUpdate || position.fixTime, 'minutes')}
+                        secondary={t('mainLastSignal')}
+                      />
+                    )}
+                    {inSummary('address') && (
+                      <SummaryItem
+                        icon={<NearMeIcon />}
+                        primary={
+                          streetAddress ||
+                          `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`
+                        }
+                        secondary={t('positionAddress')}
+                        wide
+                      />
+                    )}
                   </div>
                   <Typography variant="body2" sx={{ mt: 1.5 }}>
                     <Link component="button" underline="hover" onClick={() => setDetails(!details)}>
@@ -499,8 +516,8 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   <Collapse in={details} unmountOnExit>
                     <Table size="small" className={classes.table}>
                       <TableBody>
-                        {positionItems
-                          .split(',')
+                        {shownKeys
+                          .filter((key) => !SUMMARY_KEYS.includes(key))
                           .filter((key) => device.status === 'online' || !LIVE_KEYS.includes(key))
                           .filter(
                             (key) =>
