@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardActions, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Button, Card, CardActions, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { default as Hls, Events } from 'hls.js';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -44,6 +44,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const MAX_WATCH_MS = 10 * 60 * 1000;
+
 const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, onRecordings }) => {
   const { classes } = useStyles();
   const t = useTranslation();
@@ -52,6 +54,17 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
   const [channel, setChannel] = useState(1);
   const [stream, setStream] = useState(1); // 1 = SD (sub stream), 0 = HD (main stream)
   const [error, setError] = useState(false);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    setExpired(false);
+    const timer = setTimeout(() => {
+      setExpired(true);
+      onStop();
+    }, MAX_WATCH_MS);
+    return () => clearTimeout(timer);
+  }, [playing]);
 
   useEffect(() => {
     if (!playing) return undefined;
@@ -71,8 +84,8 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
       if (data.fatal) setError(true);
     });
     return () => {
+      // no videoStop here: other tabs may still be watching; the server stops idle streams itself
       hls.destroy();
-      send('videoStop', { index: channel });
     };
   }, [playing, device.id, channel, stream]);
 
@@ -83,6 +96,10 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
       <div className={classes.screen}>
         {playing && !error ? (
           <video ref={videoRef} className={classes.video} autoPlay muted playsInline controls />
+        ) : expired ? (
+          <Button variant="contained" onClick={onPlay} disabled={!canPlay}>
+            {t('cameraKeepWatching')}
+          </Button>
         ) : (
           <IconButton
             color="inherit"

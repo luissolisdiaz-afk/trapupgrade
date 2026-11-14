@@ -208,6 +208,7 @@
     "errorTitle": "Error",
     "errorGeneral": "Invalid parameters or constraint violation",
     "errorConnection": "Connection error",
+    "cameraKeepWatching": "Still watching? Continue",
     "errorSocket": "WebSocket connection error",
     "errorServerDown": "No connection to the server. Reconnecting…",
     "errorNoInternet": "No internet connection. Reconnecting…",

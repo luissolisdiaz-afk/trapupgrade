@@ -1192,6 +1192,101 @@ index 0000000..db4833d
 +    }
 +
 +}
+diff --git a/src/main/java/org/traccar/media/VideoStreamManager.java b/src/main/java/org/traccar/media/VideoStreamManager.java
+index efa9f5a..cd8842c 100644
+--- a/src/main/java/org/traccar/media/VideoStreamManager.java
++++ b/src/main/java/org/traccar/media/VideoStreamManager.java
+@@ -19,20 +19,73 @@ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.Unpooled;
+ 
+ import jakarta.inject.Inject;
++import jakarta.inject.Provider;
+ import jakarta.inject.Singleton;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.traccar.database.CommandsManager;
++import org.traccar.model.Command;
++
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+ import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
+ 
+ @Singleton
+ public class VideoStreamManager {
+ 
++    private static final Logger LOGGER = LoggerFactory.getLogger(VideoStreamManager.class);
++
+     private static final int MAX_SEGMENTS = 5;
++    private static final long IDLE_TIMEOUT_MS = 30_000;
++    private static final long SWEEP_INTERVAL_SECONDS = 10;
+ 
+     private final Map<String, DeviceStream> streams = new ConcurrentHashMap<>();
++    private final Map<String, Long> lastViewed = new ConcurrentHashMap<>();
++    private final Provider<CommandsManager> commandsManager;
+ 
+     @Inject
+-    public VideoStreamManager() {}
++    public VideoStreamManager(Provider<CommandsManager> commandsManager) {
++        this.commandsManager = commandsManager;
++        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
++            Thread thread = new Thread(runnable, "video-stream-idle");
++            thread.setDaemon(true);
++            return thread;
++        });
++        scheduler.scheduleWithFixedDelay(
++                this::stopIdleStreams, SWEEP_INTERVAL_SECONDS, SWEEP_INTERVAL_SECONDS, TimeUnit.SECONDS);
++    }
++
++    private void touch(long deviceId, int channel) {
++        lastViewed.put(deviceId + "_" + channel, System.currentTimeMillis());
++    }
++
++    private void stopIdleStreams() {
++        long now = System.currentTimeMillis();
++        for (Map.Entry<String, Long> entry : lastViewed.entrySet()) {
++            if (now - entry.getValue() < IDLE_TIMEOUT_MS) {
++                continue;
++            }
++            if (!lastViewed.remove(entry.getKey(), entry.getValue())) {
++                continue; // viewed again in the meantime
++            }
++            try {
++                String[] parts = entry.getKey().split("_");
++                long deviceId = Long.parseLong(parts[0]);
++                int channel = Integer.parseInt(parts[1]);
++                Command command = new Command();
++                command.setDeviceId(deviceId);
++                command.setType(Command.TYPE_VIDEO_STOP);
++                command.set(Command.KEY_INDEX, channel);
++                commandsManager.get().sendCommand(command);
++                removeStream(deviceId, channel);
++            } catch (Exception e) {
++                LOGGER.warn("Failed to stop idle video stream {}", entry.getKey(), e);
++            }
++        }
++    }
+ 
+     public void handleFrame(
+             long deviceId, int channel, ByteBuf nalData, long timestamp, boolean isKeyFrame, int payloadType) {
+@@ -41,6 +94,7 @@ public class VideoStreamManager {
+     }
+ 
+     public String getPlaylist(long deviceId, int channel) {
++        touch(deviceId, channel);
+         DeviceStream stream = streams.get(deviceId + "_" + channel);
+         return stream != null ? stream.getPlaylist() : DeviceStream.EMPTY_PLAYLIST;
+     }
+@@ -53,6 +107,7 @@ public class VideoStreamManager {
+     }
+ 
+     public ByteBuf getSegment(long deviceId, int channel, int index) {
++        touch(deviceId, channel);
+         DeviceStream stream = streams.get(deviceId + "_" + channel);
+         return stream != null ? stream.getSegment(index) : null;
+     }
 diff --git a/src/main/java/org/traccar/model/Command.java b/src/main/java/org/traccar/model/Command.java
 index 7b57888..c034db2 100644
 --- a/src/main/java/org/traccar/model/Command.java

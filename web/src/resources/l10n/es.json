@@ -208,6 +208,7 @@
     "errorTitle": "Error",
     "errorGeneral": "Parámetros no válidos o incumplimiento de restricciones",
     "errorConnection": "Error en la conexión",
+    "cameraKeepWatching": "¿Sigues mirando? Continuar",
     "errorSocket": "Error de conexión WebSocket",
     "errorServerDown": "Sin conexión con el servidor. Reconectando…",
     "errorNoInternet": "Sin conexión a internet. Reconectando…",
