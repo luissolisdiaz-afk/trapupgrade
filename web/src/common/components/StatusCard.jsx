@@ -464,7 +464,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   color={simpleState.color}
                   label={simpleState.label}
                 />
-                <IconButton size="small" onClick={onClose} onTouchStart={onClose}>
+                <IconButton size="small" aria-label={t('sharedClose')} onClick={onClose} onTouchStart={onClose}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </div>

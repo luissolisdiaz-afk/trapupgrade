@@ -104,6 +104,7 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
           <IconButton
             color="inherit"
             size="large"
+            aria-label={t('cameraPlay')}
             disabled={!playing && !canPlay}
             onClick={toggle}
             sx={{ border: '2px solid currentColor' }}
@@ -118,7 +119,7 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
         </div>
       </div>
       <CardActions className={classes.bar}>
-        <IconButton size="small" color={playing ? 'error' : 'primary'} disabled={!playing && !canPlay} onClick={toggle}>
+        <IconButton size="small" aria-label={playing ? t('cameraStop') : t('cameraPlay')} color={playing ? 'error' : 'primary'} disabled={!playing && !canPlay} onClick={toggle}>
           {playing ? <StopIcon /> : <PlayArrowIcon />}
         </IconButton>
         {channels > 1 && (
@@ -133,7 +134,7 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
           <ToggleButton value={0}>HD</ToggleButton>
         </ToggleButtonGroup>
         <div className={classes.grow} />
-        <IconButton size="small" onClick={onRecordings}>
+        <IconButton size="small" aria-label={t('linkRecordings')} onClick={onRecordings}>
           <VideoLibraryIcon fontSize="small" />
         </IconButton>
       </CardActions>

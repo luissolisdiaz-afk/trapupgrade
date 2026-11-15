@@ -55,6 +55,16 @@ const SwipeConfirm = ({ label, color = 'error', onConfirm, disabled }) => {
         {label}
       </Typography>
       <Box
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={label}
+        aria-disabled={disabled || undefined}
+        onKeyDown={(event) => {
+          if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            onConfirm();
+          }
+        }}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -72,6 +82,7 @@ const SwipeConfirm = ({ label, color = 'error', onConfirm, disabled }) => {
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'grab',
+          '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: 2 },
           transition: startX.current === null ? 'left 0.2s' : 'none',
         }}
       >

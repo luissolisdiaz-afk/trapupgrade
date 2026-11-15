@@ -49,6 +49,7 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: '20px 20px 0 0',
     maxHeight: `calc(100vh - ${theme.dimensions.bottomBarHeight + 80}px)`,
     overflowY: 'auto',
+    overscrollBehavior: 'contain',
     padding: theme.spacing(1, 2, 2),
   },
   grabber: {
@@ -482,10 +483,10 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
               />
             )}
           </Box>
-          <IconButton size="small" onClick={() => navigate(`/settings/device/${deviceId}`)}>
+          <IconButton size="small" aria-label={t('sharedEdit')} onClick={() => navigate(`/settings/device/${deviceId}`)}>
             <EditIcon />
           </IconButton>
-          <IconButton size="small" onClick={onClose} onTouchStart={onClose}>
+          <IconButton size="small" aria-label={t('sharedClose')} onClick={onClose} onTouchStart={onClose}>
             <CloseIcon />
           </IconButton>
         </div>
