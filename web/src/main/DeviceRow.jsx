@@ -77,7 +77,26 @@ const useStyles = makeStyles()((theme) => ({
   speed: {
     marginLeft: theme.spacing(1),
     whiteSpace: 'nowrap',
-    fontWeight: 500,
+    minWidth: 64,
+    textAlign: 'right',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  speedStopped: {
+    color: theme.palette.text.secondary,
+  },
+  speedMoving: {
+    color: theme.palette.success.dark,
+    fontWeight: 700,
+  },
+  speedOver: {
+    color: theme.palette.error.main,
+    fontWeight: 700,
+  },
+  speedUnit: {
+    fontSize: '0.65rem',
+    fontWeight: 400,
+    marginLeft: 2,
+    color: theme.palette.text.secondary,
   },
   wifi: {
     fontSize: 14,
@@ -98,6 +117,7 @@ const DeviceRow = ({ devices, index, style }) => {
   const position = useSelector((state) => state.session.positions[item.id]);
 
   const speedUnit = useAttributePreference('speedUnit', 'kmh');
+  const serverSpeedLimit = useSelector((state) => state.session.server.attributes.speedLimit);
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
   const deviceSecondary = useAttributePreference('deviceSecondary', '');
 
@@ -178,11 +198,21 @@ const DeviceRow = ({ devices, index, style }) => {
         />
         {position && (
           <>
-            {item.status === 'online' && (
-              <Typography variant="body2" className={classes.speed}>
-                {Math.round(speedFromKnots(position.speed, speedUnit))} {speedUnitString(speedUnit, t)}
-              </Typography>
-            )}
+            {(() => {
+              const online = item.status === 'online';
+              const speed = Math.round(speedFromKnots(position.speed, speedUnit));
+              const limitKnots = Number(item.attributes?.speedLimit) || Number(serverSpeedLimit) || 0;
+              const limit = limitKnots ? Math.round(speedFromKnots(limitKnots, speedUnit)) : 0;
+              let tone = classes.speedStopped;
+              if (online && limit && speed > limit) tone = classes.speedOver;
+              else if (online && speed > 0) tone = classes.speedMoving;
+              return (
+                <Typography variant="body1" className={`${classes.speed} ${tone}`}>
+                  {online ? speed : '—'}
+                  {online && <span className={classes.speedUnit}>{speedUnitString(speedUnit, t)}</span>}
+                </Typography>
+              );
+            })()}
             {position.attributes.hasOwnProperty('alarm') && (
               <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes.alarm, t)}`}>
                 <IconButton size="small">
