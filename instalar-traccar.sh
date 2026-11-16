@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Instala NUESTRA version de Traccar en Linux (Raspberry Pi 4 64-bit o Contabo).
-# Uso: ./instalar-traccar.sh server-patch.patch traccar-web-recordings.zip
+# Uso (desde la carpeta del repo clonado):  ./instalar-traccar.sh
+# Opcional: ./instalar-traccar.sh server-patch.patch traccar-web.zip  (si prefieres un zip de la web)
 set -euo pipefail
-PATCH="$(readlink -f "$1")"; WEBZIP="$(readlink -f "$2")"
+REPO="$(cd "$(dirname "$0")" && pwd)"
+PATCH="$(readlink -f "${1:-$REPO/server-patch.patch}")"
+WEBZIP="${2:+$(readlink -f "$2")}"
 BASE=102fa46   # commit de Traccar sobre el que se hizo el parche
 sudo apt update
 sudo apt install -y openjdk-21-jdk git unzip ffmpeg nodejs npm
@@ -12,7 +15,11 @@ cd traccar && git checkout -q $BASE && git submodule update --init --recursive
 git apply "$PATCH"
 ./gradlew assemble
 # --- web ---
-cd "$WORK" && rm -rf web && mkdir web && unzip -q "$WEBZIP" -d web && cd web/*/
+if [ -n "$WEBZIP" ]; then
+  cd "$WORK" && rm -rf web && mkdir web && unzip -q "$WEBZIP" -d web && cd web/*/
+else
+  cd "$REPO/web"
+fi
 npm ci && npm run build
 WEBBUILD=$(pwd)/build
 # --- instalar ---
