@@ -26,6 +26,7 @@ WEBBUILD=$(pwd)/build
 sudo systemctl stop traccar 2>/dev/null || true
 sudo mkdir -p /opt/traccar/{conf,data,logs,web,media}
 sudo cp -r "$WORK/traccar/target/tracker-server.jar" "$WORK/traccar/target/lib" /opt/traccar/
+sudo cp -r "$WORK/traccar/schema" "$WORK/traccar/templates" /opt/traccar/   # esquema de base de datos y plantillas
 [ -f /opt/traccar/conf/traccar.xml ] || sudo cp "$WORK/traccar/setup/traccar.xml" /opt/traccar/conf/
 # nombre de calle (OpenStreetMap / Nominatim), solo cuando se pide en la web
 if ! grep -q "geocoder.type" /opt/traccar/conf/traccar.xml; then
