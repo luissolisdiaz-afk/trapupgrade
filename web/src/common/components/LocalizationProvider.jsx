@@ -224,7 +224,8 @@ export const useLocalization = () => use(LocalizationContext);
 export const useTranslation = () => {
   const context = use(LocalizationContext);
   const { data } = context.languages[context.language];
-  return useMemo(() => (key) => data[key], [data]);
+  // si un idioma no tiene la clave, se usa el texto en inglés en vez de dejarlo vacío
+  return useMemo(() => (key) => data[key] ?? en[key], [data]);
 };
 
 export const useTranslationKeys = (predicate) => {
