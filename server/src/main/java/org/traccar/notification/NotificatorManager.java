@@ -22,6 +22,7 @@ import org.traccar.config.Keys;
 import org.traccar.model.Typed;
 import org.traccar.notificators.Notificator;
 import org.traccar.notificators.NotificatorCommand;
+import org.traccar.notificators.NotificatorEvolution;
 import org.traccar.notificators.NotificatorFirebase;
 import org.traccar.notificators.NotificatorMail;
 import org.traccar.notificators.NotificatorPushover;
@@ -30,6 +31,7 @@ import org.traccar.notificators.NotificatorTelegram;
 import org.traccar.notificators.NotificatorTraccar;
 import org.traccar.notificators.NotificatorWeb;
 import org.traccar.notificators.NotificatorWhatsapp;
+import org.traccar.session.cache.CacheManager;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -42,6 +44,12 @@ import java.util.stream.Collectors;
 @Singleton
 public class NotificatorManager {
 
+    /**
+     * WhatsApp through Evolution API. It is enabled from the admin panel (server attributes), so it does not need
+     * to be listed in notificator.types.
+     */
+    public static final String EVOLUTION = "evolution";
+
     private static final Map<String, Class<? extends Notificator>> NOTIFICATORS_ALL = Map.of(
             "command", NotificatorCommand.class,
             "web", NotificatorWeb.class,
@@ -51,15 +59,18 @@ public class NotificatorManager {
             "traccar", NotificatorTraccar.class,
             "telegram", NotificatorTelegram.class,
             "whatsapp", NotificatorWhatsapp.class,
-            "pushover", NotificatorPushover.class);
+            "pushover", NotificatorPushover.class,
+            EVOLUTION, NotificatorEvolution.class);
 
     private final Injector injector;
+    private final CacheManager cacheManager;
 
     private final Set<String> types = new HashSet<>();
 
     @Inject
-    public NotificatorManager(Injector injector, Config config) {
+    public NotificatorManager(Injector injector, Config config, CacheManager cacheManager) {
         this.injector = injector;
+        this.cacheManager = cacheManager;
         String types = config.getString(Keys.NOTIFICATOR_TYPES);
         if (types != null) {
             this.types.addAll(Arrays.asList(types.split(",")));
@@ -68,7 +79,7 @@ public class NotificatorManager {
 
     public Notificator getNotificator(String type) {
         var clazz = NOTIFICATORS_ALL.get(type);
-        if (clazz != null && types.contains(type)) {
+        if (clazz != null && isEnabled(type)) {
             var notificator = injector.getInstance(clazz);
             if (notificator != null) {
                 return notificator;
@@ -77,8 +88,17 @@ public class NotificatorManager {
         throw new RuntimeException("Failed to get notificator " + type);
     }
 
+    private boolean isEnabled(String type) {
+        return types.contains(type)
+                || EVOLUTION.equals(type) && NotificatorEvolution.isConfigured(cacheManager.getServer());
+    }
+
     public Set<Typed> getAllNotificatorTypes() {
-        return types.stream().map(Typed::new).collect(Collectors.toUnmodifiableSet());
+        Set<String> enabled = new HashSet<>(types);
+        if (isEnabled(EVOLUTION)) {
+            enabled.add(EVOLUTION);
+        }
+        return enabled.stream().map(Typed::new).collect(Collectors.toUnmodifiableSet());
     }
 
 }

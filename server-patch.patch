@@ -595,6 +595,69 @@ index 0000000..b964756
 +    }
 +
 +}
+diff --git a/src/main/java/org/traccar/api/resource/ServerResource.java b/src/main/java/org/traccar/api/resource/ServerResource.java
+index 85c1a68..969962e 100644
+--- a/src/main/java/org/traccar/api/resource/ServerResource.java
++++ b/src/main/java/org/traccar/api/resource/ServerResource.java
+@@ -64,6 +64,13 @@ import java.util.TimeZone;
+ @Consumes(MediaType.APPLICATION_JSON)
+ public class ServerResource extends BaseResource {
+ 
++    /**
++     * Shown to administrators instead of secret server attributes. Saving it back keeps the stored value.
++     */
++    public static final String SECRET_MASK = "********";
++
++    private static final List<String> SECRET_ATTRIBUTES = List.of(Keys.NOTIFICATOR_EVOLUTION_API_KEY.getKey());
++
+     @Inject
+     private Config config;
+ 
+@@ -108,17 +115,44 @@ public class ServerResource extends BaseResource {
+         } else {
+             server.setNewServer(UserUtil.isEmpty(storage));
+         }
++        boolean administrator = user != null && user.getAdministrator();
++        for (String key : SECRET_ATTRIBUTES) {
++            if (administrator && !server.getString(key, "").isEmpty()) {
++                server.set(key, SECRET_MASK);
++            } else {
++                server.removeAttribute(key);
++            }
++        }
++        if (!administrator) {
++            server.getAttributes().keySet().removeIf(key -> key.startsWith("evolution."));
++        }
+         return server;
+     }
+ 
+     @PUT
+     public Response update(Server server) throws Exception {
+         permissionsService.checkAdmin(getUserId());
++        Server stored = storage.getObject(Server.class, new Request(new Columns.All()));
++        for (String key : SECRET_ATTRIBUTES) {
++            if (SECRET_MASK.equals(server.getString(key))) {
++                String value = stored.getString(key);
++                if (value != null) {
++                    server.set(key, value);
++                } else {
++                    server.removeAttribute(key);
++                }
++            }
++        }
+         storage.updateObject(server, new Request(
+                 new Columns.Exclude("id"),
+                 new Condition.Equals("id", server.getId())));
+         cacheManager.invalidateObject(true, Server.class, server.getId(), ObjectOperation.UPDATE);
+         actionLogger.edit(request, getUserId(), server);
++        for (String key : SECRET_ATTRIBUTES) {
++            if (!server.getString(key, "").isEmpty()) {
++                server.set(key, SECRET_MASK);
++            }
++        }
+         return Response.ok(server).build();
+     }
+ 
 diff --git a/src/main/java/org/traccar/api/resource/ShareResource.java b/src/main/java/org/traccar/api/resource/ShareResource.java
 index 818ecd8..677cb72 100644
 --- a/src/main/java/org/traccar/api/resource/ShareResource.java
@@ -688,7 +751,7 @@ index d1f910f..08b5128 100644
          } else if (device.hasAttribute("notificationTokens")) {
              if (config.hasKey(Keys.COMMAND_CLIENT_SERVICE_ACCOUNT)) {
 diff --git a/src/main/java/org/traccar/config/Keys.java b/src/main/java/org/traccar/config/Keys.java
-index 6aaa944..bd3d008 100644
+index 6aaa944..3818e8f 100644
 --- a/src/main/java/org/traccar/config/Keys.java
 +++ b/src/main/java/org/traccar/config/Keys.java
 @@ -427,6 +427,23 @@ public final class Keys {
@@ -715,7 +778,44 @@ index 6aaa944..bd3d008 100644
      /**
       * Distance in meters at which a linked device entering this range triggers a proximity enter event. 0 to disable.
       */
-@@ -2157,6 +2174,23 @@ public final class Keys {
+@@ -1543,6 +1560,36 @@ public final class Keys {
+             List.of(KeyType.CONFIG),
+             "en_US");
+ 
++    /**
++     * Evolution API (self-hosted WhatsApp gateway) base address, for example https://whatsapp.example.com.
++     * Server attribute edited from the admin panel.
++     */
++    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_URL = new StringConfigKey(
++            "evolution.url",
++            List.of(KeyType.SERVER));
++
++    /**
++     * Evolution API key. It is hidden from every API response.
++     */
++    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_API_KEY = new StringConfigKey(
++            "evolution.apiKey",
++            List.of(KeyType.SERVER));
++
++    /**
++     * Evolution API instance name, that is the company WhatsApp number connected to Evolution.
++     */
++    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_INSTANCE = new StringConfigKey(
++            "evolution.instance",
++            List.of(KeyType.SERVER));
++
++    /**
++     * Country code added to user phone numbers written without it. Default value is 56 (Chile).
++     */
++    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_COUNTRY_CODE = new StringConfigKey(
++            "evolution.countryCode",
++            List.of(KeyType.SERVER),
++            "56");
++
+     /**
+      * Enable user expiration email notification.
+      */
+@@ -2157,6 +2204,23 @@ public final class Keys {
              List.of(KeyType.CONFIG),
              100);
  
@@ -739,7 +839,7 @@ index 6aaa944..bd3d008 100644
      /**
       * Override latitude sign / hemisphere. Useful in cases where value is incorrect because of device bug. Value can be
       * N for North or S for South.
-@@ -2222,6 +2256,15 @@ public final class Keys {
+@@ -2222,6 +2286,15 @@ public final class Keys {
              "web.persistSession",
              List.of(KeyType.CONFIG));
  
@@ -1579,6 +1679,227 @@ index 71ae26d..b91a452 100644
          return textTemplateFormatter.formatMessage(velocityContext, event.getType(), priority);
      }
  
+diff --git a/src/main/java/org/traccar/notification/NotificatorManager.java b/src/main/java/org/traccar/notification/NotificatorManager.java
+index 5072834..1a9e082 100644
+--- a/src/main/java/org/traccar/notification/NotificatorManager.java
++++ b/src/main/java/org/traccar/notification/NotificatorManager.java
+@@ -22,6 +22,7 @@ import org.traccar.config.Keys;
+ import org.traccar.model.Typed;
+ import org.traccar.notificators.Notificator;
+ import org.traccar.notificators.NotificatorCommand;
++import org.traccar.notificators.NotificatorEvolution;
+ import org.traccar.notificators.NotificatorFirebase;
+ import org.traccar.notificators.NotificatorMail;
+ import org.traccar.notificators.NotificatorPushover;
+@@ -30,6 +31,7 @@ import org.traccar.notificators.NotificatorTelegram;
+ import org.traccar.notificators.NotificatorTraccar;
+ import org.traccar.notificators.NotificatorWeb;
+ import org.traccar.notificators.NotificatorWhatsapp;
++import org.traccar.session.cache.CacheManager;
+ 
+ import jakarta.inject.Inject;
+ import jakarta.inject.Singleton;
+@@ -42,6 +44,12 @@ import java.util.stream.Collectors;
+ @Singleton
+ public class NotificatorManager {
+ 
++    /**
++     * WhatsApp through Evolution API. It is enabled from the admin panel (server attributes), so it does not need
++     * to be listed in notificator.types.
++     */
++    public static final String EVOLUTION = "evolution";
++
+     private static final Map<String, Class<? extends Notificator>> NOTIFICATORS_ALL = Map.of(
+             "command", NotificatorCommand.class,
+             "web", NotificatorWeb.class,
+@@ -51,15 +59,18 @@ public class NotificatorManager {
+             "traccar", NotificatorTraccar.class,
+             "telegram", NotificatorTelegram.class,
+             "whatsapp", NotificatorWhatsapp.class,
+-            "pushover", NotificatorPushover.class);
++            "pushover", NotificatorPushover.class,
++            EVOLUTION, NotificatorEvolution.class);
+ 
+     private final Injector injector;
++    private final CacheManager cacheManager;
+ 
+     private final Set<String> types = new HashSet<>();
+ 
+     @Inject
+-    public NotificatorManager(Injector injector, Config config) {
++    public NotificatorManager(Injector injector, Config config, CacheManager cacheManager) {
+         this.injector = injector;
++        this.cacheManager = cacheManager;
+         String types = config.getString(Keys.NOTIFICATOR_TYPES);
+         if (types != null) {
+             this.types.addAll(Arrays.asList(types.split(",")));
+@@ -68,7 +79,7 @@ public class NotificatorManager {
+ 
+     public Notificator getNotificator(String type) {
+         var clazz = NOTIFICATORS_ALL.get(type);
+-        if (clazz != null && types.contains(type)) {
++        if (clazz != null && isEnabled(type)) {
+             var notificator = injector.getInstance(clazz);
+             if (notificator != null) {
+                 return notificator;
+@@ -77,8 +88,17 @@ public class NotificatorManager {
+         throw new RuntimeException("Failed to get notificator " + type);
+     }
+ 
++    private boolean isEnabled(String type) {
++        return types.contains(type)
++                || EVOLUTION.equals(type) && NotificatorEvolution.isConfigured(cacheManager.getServer());
++    }
++
+     public Set<Typed> getAllNotificatorTypes() {
+-        return types.stream().map(Typed::new).collect(Collectors.toUnmodifiableSet());
++        Set<String> enabled = new HashSet<>(types);
++        if (isEnabled(EVOLUTION)) {
++            enabled.add(EVOLUTION);
++        }
++        return enabled.stream().map(Typed::new).collect(Collectors.toUnmodifiableSet());
+     }
+ 
+ }
+diff --git a/src/main/java/org/traccar/notificators/NotificatorEvolution.java b/src/main/java/org/traccar/notificators/NotificatorEvolution.java
+new file mode 100644
+index 0000000..fa5cf94
+--- /dev/null
++++ b/src/main/java/org/traccar/notificators/NotificatorEvolution.java
+@@ -0,0 +1,133 @@
++/*
++ * Copyright 2026 Roadsafe
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.notificators;
++
++import com.fasterxml.jackson.annotation.JsonProperty;
++import org.traccar.config.Keys;
++import org.traccar.helper.WebHelper;
++import org.traccar.model.Event;
++import org.traccar.model.Position;
++import org.traccar.model.Server;
++import org.traccar.model.User;
++import org.traccar.notification.MessageException;
++import org.traccar.notification.NotificationFormatter;
++import org.traccar.notification.NotificationMessage;
++import org.traccar.session.cache.CacheManager;
++
++import jakarta.inject.Inject;
++import jakarta.inject.Singleton;
++import jakarta.ws.rs.client.Client;
++import jakarta.ws.rs.client.Entity;
++import java.net.URLEncoder;
++import java.nio.charset.StandardCharsets;
++import java.util.Locale;
++import java.util.concurrent.CompletableFuture;
++
++/**
++ * Sends notifications through WhatsApp using a self-hosted Evolution API (v2) instance. The company number is the
++ * Evolution instance; its address, API key and instance name are server attributes edited from the admin panel,
++ * so changes apply without restarting. Each user receives the messages on the phone number of the user account.
++ */
++@Singleton
++public class NotificatorEvolution extends Notificator {
++
++    private final Client client;
++    private final CacheManager cacheManager;
++
++    public static class TextMessage {
++        @JsonProperty("number")
++        private String number;
++        @JsonProperty("text")
++        private String text;
++    }
++
++    @Inject
++    public NotificatorEvolution(NotificationFormatter notificationFormatter, Client client, CacheManager cacheManager) {
++        super(notificationFormatter);
++        this.client = client;
++        this.cacheManager = cacheManager;
++    }
++
++    public static boolean isConfigured(Server server) {
++        return server != null
++                && !server.getString(Keys.NOTIFICATOR_EVOLUTION_URL.getKey(), "").isBlank()
++                && !server.getString(Keys.NOTIFICATOR_EVOLUTION_API_KEY.getKey(), "").isBlank()
++                && !server.getString(Keys.NOTIFICATOR_EVOLUTION_INSTANCE.getKey(), "").isBlank();
++    }
++
++    /**
++     * WhatsApp needs the full international number with digits only. Short local numbers get the configured country
++     * code, so "9 1234 5678" becomes "56912345678" for Chile.
++     */
++    static String formatNumber(String phone, String countryCode) {
++        String digits = phone.replaceAll("[^0-9]", "");
++        if (digits.startsWith("00")) {
++            digits = digits.substring(2);
++        } else if (digits.length() <= 9 && countryCode != null && !countryCode.isBlank()
++                && !phone.trim().startsWith("+")) {
++            digits = countryCode.replaceAll("[^0-9]", "") + digits;
++        }
++        return digits;
++    }
++
++    @Override
++    public CompletableFuture<Void> sendAsync(
++            User user, NotificationMessage shortMessage, Event event, Position position) {
++
++        boolean test = event != null && "test".equals(event.getType());
++
++        String phone = user.getPhone();
++        if (phone == null || phone.isBlank()) {
++            if (test) {
++                return CompletableFuture.failedFuture(
++                        new MessageException("El usuario no tiene número de teléfono para WhatsApp"));
++            }
++            return CompletableFuture.completedFuture(null);
++        }
++
++        Server server = cacheManager.getServer();
++        if (!isConfigured(server)) {
++            return CompletableFuture.failedFuture(
++                    new MessageException("Falta configurar WhatsApp (Evolution API) en el servidor"));
++        }
++
++        String baseUrl = server.getString(Keys.NOTIFICATOR_EVOLUTION_URL.getKey()).trim().replaceAll("/+$", "");
++        String apiKey = server.getString(Keys.NOTIFICATOR_EVOLUTION_API_KEY.getKey()).trim();
++        String instance = server.getString(Keys.NOTIFICATOR_EVOLUTION_INSTANCE.getKey()).trim();
++        String countryCode = server.getString(Keys.NOTIFICATOR_EVOLUTION_COUNTRY_CODE.getKey(), "56");
++
++        TextMessage message = new TextMessage();
++        message.number = formatNumber(phone, countryCode);
++        StringBuilder text = new StringBuilder(shortMessage.digest());
++        if (position != null && (position.getLatitude() != 0 || position.getLongitude() != 0)) {
++            text.append("\nhttps://maps.google.com/?q=")
++                    .append(String.format(Locale.US, "%.6f,%.6f", position.getLatitude(), position.getLongitude()));
++        }
++        message.text = text.toString();
++
++        String url = baseUrl + "/message/sendText/" + URLEncoder.encode(instance, StandardCharsets.UTF_8)
++                .replace("+", "%20");
++        var request = client.target(url).request().header("apikey", apiKey);
++        return WebHelper.post(request, Entity.json(message), response -> {
++            if (response.getStatus() / 100 != 2) {
++                throw new MessageException(
++                        "WhatsApp (Evolution API) respondió " + response.getStatus() + ": "
++                        + response.readEntity(String.class));
++            }
++        });
++    }
++
++}
 diff --git a/src/main/java/org/traccar/protocol/Jt808AttachmentFrameDecoder.java b/src/main/java/org/traccar/protocol/Jt808AttachmentFrameDecoder.java
 new file mode 100644
 index 0000000..0b57f5d
@@ -2595,6 +2916,45 @@ index 0000000..b7e0518
 +        assertEquals(1, result.size());
 +        assertEquals(Instant.parse("2026-11-06T10:00:00Z"), result.get(0).startTime().toInstant());
 +        assertTrue(RecordingParser.parse(Unpooled.buffer(), TimeZone.getTimeZone("UTC")).isEmpty());
++    }
++
++}
+diff --git a/src/test/java/org/traccar/notificators/NotificatorEvolutionTest.java b/src/test/java/org/traccar/notificators/NotificatorEvolutionTest.java
+new file mode 100644
+index 0000000..24317e0
+--- /dev/null
++++ b/src/test/java/org/traccar/notificators/NotificatorEvolutionTest.java
+@@ -0,0 +1,33 @@
++package org.traccar.notificators;
++
++import org.junit.jupiter.api.Test;
++import org.traccar.model.Server;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++public class NotificatorEvolutionTest {
++
++    @Test
++    public void testFormatNumber() {
++        assertEquals("56912345678", NotificatorEvolution.formatNumber("9 1234 5678", "56"));
++        assertEquals("56912345678", NotificatorEvolution.formatNumber("+56 9 1234 5678", "56"));
++        assertEquals("56912345678", NotificatorEvolution.formatNumber("0056912345678", "56"));
++        assertEquals("56912345678", NotificatorEvolution.formatNumber("56912345678", "56"));
++        assertEquals("5491123456789", NotificatorEvolution.formatNumber("+54 9 11 2345-6789", "56"));
++        assertEquals("912345678", NotificatorEvolution.formatNumber("912345678", ""));
++    }
++
++    @Test
++    public void testIsConfigured() {
++        Server server = new Server();
++        assertFalse(NotificatorEvolution.isConfigured(server));
++        server.set("evolution.url", "https://wa.example.com");
++        server.set("evolution.apiKey", "key");
++        assertFalse(NotificatorEvolution.isConfigured(server));
++        server.set("evolution.instance", "roadsafe");
++        assertTrue(NotificatorEvolution.isConfigured(server));
 +    }
 +
 +}

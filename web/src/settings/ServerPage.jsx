@@ -283,6 +283,51 @@ const ServerPage = () => {
             </Accordion>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('serverWhatsapp')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <TextField
+                  value={item.attributes['evolution.url'] || ''}
+                  onChange={(event) => setAttribute('evolution.url', event.target.value.trim())}
+                  label={t('serverWhatsappUrl')}
+                  placeholder="https://whatsapp.roadsafe.cl"
+                  type="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <TextField
+                  value={item.attributes['evolution.instance'] || ''}
+                  onChange={(event) =>
+                    setAttribute('evolution.instance', event.target.value.trim())
+                  }
+                  label={t('serverWhatsappInstance')}
+                  placeholder="roadsafe-eventos"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <TextField
+                  value={item.attributes['evolution.apiKey'] || ''}
+                  onChange={(event) => setAttribute('evolution.apiKey', event.target.value.trim())}
+                  label={t('serverWhatsappApiKey')}
+                  type="password"
+                  autoComplete="new-password"
+                />
+                <TextField
+                  value={item.attributes['evolution.countryCode'] || ''}
+                  onChange={(event) =>
+                    setAttribute('evolution.countryCode', event.target.value.replace(/\D/g, ''))
+                  }
+                  label={t('serverWhatsappCountryCode')}
+                  placeholder="56"
+                  inputMode="numeric"
+                />
+                <Typography variant="caption" color="textSecondary">
+                  {t('serverWhatsappHint')}
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant="subtitle1">{t('sharedLocation')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
