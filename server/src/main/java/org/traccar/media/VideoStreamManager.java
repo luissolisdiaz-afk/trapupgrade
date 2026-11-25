@@ -17,15 +17,14 @@ package org.traccar.media;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
-import jakarta.inject.Inject;
-import jakarta.inject.Provider;
-import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.traccar.database.CommandsManager;
 import org.traccar.model.Command;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+import jakarta.inject.Singleton;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
