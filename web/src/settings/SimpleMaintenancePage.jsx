@@ -1,13 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  Button,
-  Container,
-  MenuItem,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button, Container, MenuItem, Paper, TextField, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import PageLayout from '../common/components/PageLayout';
 import SettingsMenu from './components/SettingsMenu';
@@ -19,8 +12,18 @@ import { messagesActions } from '../store';
 import { MAINTENANCE_TEMPLATES } from './maintenanceTemplates';
 
 const useStyles = makeStyles()((theme) => ({
-  container: { padding: theme.spacing(2), display: 'flex', flexDirection: 'column', gap: theme.spacing(1.5) },
-  row: { padding: theme.spacing(1.5), display: 'flex', flexDirection: 'column', gap: theme.spacing(1) },
+  container: {
+    padding: theme.spacing(2),
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1.5),
+  },
+  row: {
+    padding: theme.spacing(1.5),
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+  },
   actions: { display: 'flex', gap: theme.spacing(1) },
 }));
 
@@ -54,7 +57,9 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
     return existing.period / (existing.type === 'hours' ? HOUR : 1000);
   };
   const [value, setValue] = useState(initial());
-  const [repeatDays, setRepeatDays] = useState(existing?.type === 'fixTime' ? Math.round(existing.period / DAY) : 365);
+  const [repeatDays, setRepeatDays] = useState(
+    existing?.type === 'fixTime' ? Math.round(existing.period / DAY) : 365,
+  );
 
   const remove = async () => {
     if (existing) await fetchOrThrow(`api/maintenance/${existing.id}`, { method: 'DELETE' });
@@ -71,23 +76,39 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
       body = { type: 'hours', start: (position?.attributes?.hours || 0) + period, period };
     } else {
       const period = Number(value) * 1000;
-      body = { type: 'totalDistance', start: (position?.attributes?.totalDistance || 0) + period, period };
+      body = {
+        type: 'totalDistance',
+        start: (position?.attributes?.totalDistance || 0) + period,
+        period,
+      };
     }
     const created = await (
       await fetchOrThrow(
         'api/maintenance',
-        json('POST', { name: template.label, ...body, attributes: { template: template.key, deviceId } }),
+        json('POST', {
+          name: template.label,
+          ...body,
+          attributes: { template: template.key, deviceId },
+        }),
       )
     ).json();
     await fetchOrThrow('api/permissions', json('POST', { deviceId, maintenanceId: created.id }));
 
     // aviso del evento de mantenimiento para este equipo (una sola vez)
-    const notifications = await (await fetchOrThrow(`api/notifications?deviceId=${deviceId}`)).json();
+    const notifications = await (
+      await fetchOrThrow(`api/notifications?deviceId=${deviceId}`)
+    ).json();
     if (!notifications.some((n) => n.type === 'maintenance')) {
       const notification = await (
-        await fetchOrThrow('api/notifications', json('POST', { type: 'maintenance', always: false, notificators: 'web' }))
+        await fetchOrThrow(
+          'api/notifications',
+          json('POST', { type: 'maintenance', always: false, notificators: 'web' }),
+        )
       ).json();
-      await fetchOrThrow('api/permissions', json('POST', { deviceId, notificationId: notification.id }));
+      await fetchOrThrow(
+        'api/permissions',
+        json('POST', { deviceId, notificationId: notification.id }),
+      );
     }
     dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
     onChanged();
@@ -104,9 +125,17 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
     <Paper className={classes.row}>
       <Typography variant="subtitle2">{template.label}</Typography>
       {template.kinds.length > 1 && (
-        <TextField select size="small" value={kind} onChange={(e) => setKind(e.target.value)} label="Medir por">
+        <TextField
+          select
+          size="small"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          label="Medir por"
+        >
           {template.kinds.map((k) => (
-            <MenuItem key={k} value={k}>{k === 'distance' ? 'Kilometraje' : 'Horas de motor'}</MenuItem>
+            <MenuItem key={k} value={k}>
+              {k === 'distance' ? 'Kilometraje' : 'Horas de motor'}
+            </MenuItem>
           ))}
         </TextField>
       )}
@@ -122,7 +151,13 @@ const TemplateRow = ({ template, existing, position, deviceId, onChanged }) => {
         />
       ) : null}
       {kind === 'date' ? (
-        <TextField select size="small" value={repeatDays} onChange={(e) => setRepeatDays(e.target.value)} label="Se repite cada">
+        <TextField
+          select
+          size="small"
+          value={repeatDays}
+          onChange={(e) => setRepeatDays(e.target.value)}
+          label="Se repite cada"
+        >
           <MenuItem value={91}>3 meses</MenuItem>
           <MenuItem value={182}>6 meses</MenuItem>
           <MenuItem value={365}>1 año</MenuItem>
@@ -181,9 +216,17 @@ const SimpleMaintenancePage = () => {
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'sharedMaintenance']}>
       <Container maxWidth="sm" className={classes.container}>
-        <TextField select size="small" value={current || ''} onChange={(e) => setDeviceId(e.target.value)} label="Equipo">
+        <TextField
+          select
+          size="small"
+          value={current || ''}
+          onChange={(e) => setDeviceId(e.target.value)}
+          label="Equipo"
+        >
           {devices.map((d) => (
-            <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+            <MenuItem key={d.id} value={d.id}>
+              {d.name}
+            </MenuItem>
           ))}
         </TextField>
         {current &&

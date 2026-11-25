@@ -13,6 +13,9 @@
  */
 package org.traccar.api.resource;
 
+import org.traccar.api.BaseResource;
+import org.traccar.notification.CustomTemplateStore;
+
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -24,9 +27,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.traccar.api.BaseResource;
-import org.traccar.notification.CustomTemplateStore;
-
 import java.io.IOException;
 import java.util.Map;
 

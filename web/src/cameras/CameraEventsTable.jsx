@@ -92,7 +92,12 @@ const CameraEventsTable = ({ events }) => {
                   </Button>
                 )}
                 {event.type === 'alarm' && !event.label && (
-                  <Typography component="span" variant="caption" color="textSecondary" sx={{ mr: 1 }}>
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="textSecondary"
+                    sx={{ mr: 1 }}
+                  >
                     {t('cameraNoClip')}
                   </Typography>
                 )}
@@ -121,7 +126,9 @@ const CameraEventsTable = ({ events }) => {
               <AlarmAttachments inline deviceId={clip.deviceId} label={clip.label} />
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => navigate(`/event/${clip.id}`)}>{t('cameraEventLocation')}</Button>
+              <Button onClick={() => navigate(`/event/${clip.id}`)}>
+                {t('cameraEventLocation')}
+              </Button>
               <Button onClick={() => setClip(null)}>{t('sharedCancel')}</Button>
             </DialogActions>
           </>

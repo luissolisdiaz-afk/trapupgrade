@@ -5,16 +5,22 @@ import { useTranslation } from './LocalizationProvider';
 const Navbar = ({ setOpenDrawer, title }) => {
   const t = useTranslation();
   return (
-  <AppBar position="sticky" color="inherit">
-    <Toolbar>
-      <IconButton color="inherit" edge="start" sx={{ mr: 2 }} aria-label={t('sharedMenu')} onClick={() => setOpenDrawer(true)}>
-        <MenuIcon />
-      </IconButton>
-      <Typography variant="h6" noWrap>
-        {title}
-      </Typography>
-    </Toolbar>
-  </AppBar>
+    <AppBar position="sticky" color="inherit">
+      <Toolbar>
+        <IconButton
+          color="inherit"
+          edge="start"
+          sx={{ mr: 2 }}
+          aria-label={t('sharedMenu')}
+          onClick={() => setOpenDrawer(true)}
+        >
+          <MenuIcon />
+        </IconButton>
+        <Typography variant="h6" noWrap>
+          {title}
+        </Typography>
+      </Toolbar>
+    </AppBar>
   );
 };
 

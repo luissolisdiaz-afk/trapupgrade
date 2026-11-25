@@ -1,0 +1,92 @@
+# Revisión automática: se ejecuta en cada push a main, en cada pull request
+# y a mano desde la pestaña "Actions" de GitHub.
+name: Revisión
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revision-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Commit de Traccar sobre el que se generó server-patch.patch (102fa46).
+  TRACCAR_BASE: 102fa46c8e93f75db7c52e6e85b6e0592240d04c
+
+jobs:
+  servidor:
+    name: Servidor (compilar, checkstyle y pruebas)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      # "build" compila, pasa checkstyle (imports sin usar, etc.) y corre las pruebas.
+      - run: ./gradlew build --no-daemon
+      - name: Guardar informe de pruebas si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-pruebas-servidor
+          path: |
+            server/build/reports/tests/
+            server/build/reports/checkstyle/
+          if-no-files-found: ignore
+
+  web:
+    name: Web (lint y build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      # Los errores hacen fallar la revisión; los avisos solo se muestran.
+      - run: npx eslint .
+      - run: npm run build
+
+  parche:
+    name: server-patch.patch coincide con server/
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+      - name: Descargar Traccar base
+        run: |
+          git init -q base
+          cd base
+          git fetch -q --depth 1 https://github.com/traccar/traccar.git "$TRACCAR_BASE"
+          git checkout -q FETCH_HEAD
+      - name: Aplicar el parche
+        working-directory: base
+        run: git apply --whitespace=nowarn ../repo/server-patch.patch
+      - name: Comparar con server/
+        run: |
+          if ! diff -r --exclude=.git --exclude=traccar-web base repo/server > diferencias.txt; then
+            echo "::error::server-patch.patch no coincide con server/. Regenera el parche (diff contra 102fa46)."
+            head -n 200 diferencias.txt
+            exit 1
+          fi
+          echo "El parche coincide con server/."

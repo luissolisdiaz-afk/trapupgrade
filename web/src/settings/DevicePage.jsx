@@ -43,7 +43,6 @@ const DevicePage = () => {
   const [searchParams] = useSearchParams();
   const uniqueId = searchParams.get('uniqueId');
   const ownerId = searchParams.get('userId');
-  const currentUserId = useSelector((state) => state.session.user.id);
   const myId = useSelector((state) => state.session.user.id);
 
   // Equipo creado desde la página de equipos de un usuario: se le asigna al guardar.
@@ -71,7 +70,11 @@ const DevicePage = () => {
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [showQr, setShowQr] = useState(false);
-  const [lockConfig, setLockConfig] = useState({ method: 'none', lockData: 'Relay,1#', unlockData: 'Relay,0#' });
+  const [lockConfig, setLockConfig] = useState({
+    method: 'none',
+    lockData: 'Relay,1#',
+    unlockData: 'Relay,0#',
+  });
   const [imageFile, setImageFile] = useState(null);
 
   const handleFileInput = useCatch(async (newFile) => {
@@ -114,13 +117,13 @@ const DevicePage = () => {
                 label={t('sharedName')}
               />
               {admin && (
-              <TextField
-                value={item.uniqueId || ''}
-                onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
-                label={t('deviceIdentifier')}
-                helperText={t('deviceIdentifierHelp')}
-                disabled={Boolean(uniqueId)}
-              />
+                <TextField
+                  value={item.uniqueId || ''}
+                  onChange={(event) => setItem({ ...item, uniqueId: event.target.value })}
+                  label={t('deviceIdentifier')}
+                  helperText={t('deviceIdentifierHelp')}
+                  disabled={Boolean(uniqueId)}
+                />
               )}
             </AccordionDetails>
           </Accordion>
@@ -136,25 +139,25 @@ const DevicePage = () => {
                 label={t('groupParent')}
               />
               {admin && (
-              <TextField
-                value={item.phone || ''}
-                onChange={(event) => setItem({ ...item, phone: event.target.value })}
-                label={t('sharedPhone')}
-              />
+                <TextField
+                  value={item.phone || ''}
+                  onChange={(event) => setItem({ ...item, phone: event.target.value })}
+                  label={t('sharedPhone')}
+                />
               )}
               {admin && (
-              <TextField
-                value={item.model || ''}
-                onChange={(event) => setItem({ ...item, model: event.target.value })}
-                label={t('deviceModel')}
-              />
+                <TextField
+                  value={item.model || ''}
+                  onChange={(event) => setItem({ ...item, model: event.target.value })}
+                  label={t('deviceModel')}
+                />
               )}
               {admin && (
-              <TextField
-                value={item.contact || ''}
-                onChange={(event) => setItem({ ...item, contact: event.target.value })}
-                label={t('deviceContact')}
-              />
+                <TextField
+                  value={item.contact || ''}
+                  onChange={(event) => setItem({ ...item, contact: event.target.value })}
+                  label={t('deviceContact')}
+                />
               )}
               <SelectField
                 value={item.category || 'default'}
@@ -170,44 +173,50 @@ const DevicePage = () => {
               <TextField
                 value={item.attributes?.plate || ''}
                 onChange={(e) =>
-                  setItem({ ...item, attributes: { ...item.attributes, plate: e.target.value.toUpperCase() } })
+                  setItem({
+                    ...item,
+                    attributes: { ...item.attributes, plate: e.target.value.toUpperCase() },
+                  })
                 }
                 label={t('devicePlate')}
               />
               {admin && (
-              <SelectField
-                value={item.calendarId}
-                onChange={(event) => setItem({ ...item, calendarId: Number(event.target.value) })}
-                endpoint="api/calendars"
-                label={t('sharedCalendar')}
-              />
+                <SelectField
+                  value={item.calendarId}
+                  onChange={(event) => setItem({ ...item, calendarId: Number(event.target.value) })}
+                  endpoint="api/calendars"
+                  label={t('sharedCalendar')}
+                />
               )}
               {admin && (
                 <>
-              <TextField
-                label={t('userExpirationTime')}
-                type="date"
-                value={item.expirationTime ? item.expirationTime.split('T')[0] : '2099-01-01'}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setItem({ ...item, expirationTime: new Date(e.target.value).toISOString() });
-                  }
-                }}
-                disabled={!manager}
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={item.disabled}
-                    onChange={(event) => setItem({ ...item, disabled: event.target.checked })}
+                  <TextField
+                    label={t('userExpirationTime')}
+                    type="date"
+                    value={item.expirationTime ? item.expirationTime.split('T')[0] : '2099-01-01'}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setItem({
+                          ...item,
+                          expirationTime: new Date(e.target.value).toISOString(),
+                        });
+                      }
+                    }}
+                    disabled={!manager}
                   />
-                }
-                label={t('sharedDisabled')}
-                disabled={!manager}
-              />
-              <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
-                {t('sharedQrCode')}
-              </Button>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={item.disabled}
+                        onChange={(event) => setItem({ ...item, disabled: event.target.checked })}
+                      />
+                    }
+                    label={t('sharedDisabled')}
+                    disabled={!manager}
+                  />
+                  <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
+                    {t('sharedQrCode')}
+                  </Button>
                 </>
               )}
             </AccordionDetails>
@@ -233,7 +242,11 @@ const DevicePage = () => {
                 <Typography variant="subtitle1">{t('lockMethod')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <EngineLockSetup deviceId={item.id} deviceName={item.name} onChange={setLockConfig} />
+                <EngineLockSetup
+                  deviceId={item.id}
+                  deviceName={item.name}
+                  onChange={setLockConfig}
+                />
               </AccordionDetails>
             </Accordion>
           )}
@@ -248,7 +261,10 @@ const DevicePage = () => {
                     <Switch
                       checked={Boolean(item.attributes?.allowOdometer)}
                       onChange={(e) =>
-                        setItem({ ...item, attributes: { ...item.attributes, allowOdometer: e.target.checked } })
+                        setItem({
+                          ...item,
+                          attributes: { ...item.attributes, allowOdometer: e.target.checked },
+                        })
                       }
                     />
                   }
@@ -258,16 +274,19 @@ const DevicePage = () => {
             </Accordion>
           )}
           {item.id && (admin || item.attributes?.allowOdometer) && (
-            <Button variant="outlined" onClick={() => navigate(`/settings/accumulators/${item.id}`)}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/settings/accumulators/${item.id}`)}
+            >
               {t('deviceEditOdometer')}
             </Button>
           )}
           {admin && (
-          <EditAttributesAccordion
-            attributes={item.attributes}
-            setAttributes={(attributes) => setItem({ ...item, attributes })}
-            definitions={{ ...commonDeviceAttributes, ...deviceAttributes }}
-          />
+            <EditAttributesAccordion
+              attributes={item.attributes}
+              setAttributes={(attributes) => setItem({ ...item, attributes })}
+              definitions={{ ...commonDeviceAttributes, ...deviceAttributes }}
+            />
           )}
         </>
       )}

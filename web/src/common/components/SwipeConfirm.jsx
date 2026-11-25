@@ -50,7 +50,14 @@ const SwipeConfirm = ({ label, color = 'error', onConfirm, disabled }) => {
         variant="body2"
         fontWeight={600}
         color="textSecondary"
-        sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pl: 6 }}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pl: 6,
+        }}
       >
         {label}
       </Typography>
@@ -82,7 +89,11 @@ const SwipeConfirm = ({ label, color = 'error', onConfirm, disabled }) => {
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'grab',
-          '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+          '&:focus-visible': {
+            outline: '3px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: 2,
+          },
           transition: startX.current === null ? 'left 0.2s' : 'none',
         }}
       >

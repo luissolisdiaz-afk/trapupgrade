@@ -6,10 +6,25 @@ export const SOURCES = {
     time: (r) => r.startTime,
     groupBys: ['device', 'day', 'none'],
     metrics: {
-      distance: { label: 'builderDistance', unit: 'km', agg: 'sum', value: (r) => r.distance / 1000 },
+      distance: {
+        label: 'builderDistance',
+        unit: 'km',
+        agg: 'sum',
+        value: (r) => r.distance / 1000,
+      },
       count: { label: 'builderTripCount', unit: '', agg: 'sum', value: () => 1 },
-      maxSpeed: { label: 'builderMaxSpeed', unit: 'km/h', agg: 'max', value: (r) => r.maxSpeed * 1.852 },
-      duration: { label: 'builderDuration', unit: 'h', agg: 'sum', value: (r) => r.duration / 3600000 },
+      maxSpeed: {
+        label: 'builderMaxSpeed',
+        unit: 'km/h',
+        agg: 'max',
+        value: (r) => r.maxSpeed * 1.852,
+      },
+      duration: {
+        label: 'builderDuration',
+        unit: 'h',
+        agg: 'sum',
+        value: (r) => r.duration / 3600000,
+      },
     },
   },
   summary: {
@@ -17,10 +32,30 @@ export const SOURCES = {
     time: (r) => r.startTime,
     groupBys: ['device', 'day', 'none'],
     metrics: {
-      maxSpeed: { label: 'builderMaxSpeed', unit: 'km/h', agg: 'max', value: (r) => (r.maxSpeed || 0) * 1.852 },
-      averageSpeed: { label: 'builderAverageSpeed', unit: 'km/h', agg: 'avg', value: (r) => (r.averageSpeed || 0) * 1.852 },
-      distance: { label: 'builderDistance', unit: 'km', agg: 'sum', value: (r) => (r.distance || 0) / 1000 },
-      engineHours: { label: 'builderEngineHours', unit: 'h', agg: 'sum', value: (r) => (r.engineHours || 0) / 3600000 },
+      maxSpeed: {
+        label: 'builderMaxSpeed',
+        unit: 'km/h',
+        agg: 'max',
+        value: (r) => (r.maxSpeed || 0) * 1.852,
+      },
+      averageSpeed: {
+        label: 'builderAverageSpeed',
+        unit: 'km/h',
+        agg: 'avg',
+        value: (r) => (r.averageSpeed || 0) * 1.852,
+      },
+      distance: {
+        label: 'builderDistance',
+        unit: 'km',
+        agg: 'sum',
+        value: (r) => (r.distance || 0) / 1000,
+      },
+      engineHours: {
+        label: 'builderEngineHours',
+        unit: 'h',
+        agg: 'sum',
+        value: (r) => (r.engineHours || 0) / 3600000,
+      },
     },
   },
   events: {
@@ -63,7 +98,8 @@ export const aggregate = (rows, widget, deviceName) => {
       const value = metric.value(r);
       const current = map.get(key);
       if (current === undefined) map.set(key, { value, count: 1 });
-      else if (metric.agg === 'max') map.set(key, { value: Math.max(current.value, value), count: 1 });
+      else if (metric.agg === 'max')
+        map.set(key, { value: Math.max(current.value, value), count: 1 });
       else map.set(key, { value: current.value + value, count: current.count + 1 });
     });
   const result = [...map].map(([name, { value, count }]) => ({
@@ -77,10 +113,58 @@ export const aggregate = (rows, widget, deviceName) => {
 };
 
 export const defaultWidgets = [
-  { id: 'w1', type: 'kpi', title: '', source: 'trips', metric: 'distance', groupBy: 'none', span: 1 },
-  { id: 'w2', type: 'kpi', title: '', source: 'overspeed', metric: 'count', groupBy: 'none', span: 1 },
-  { id: 'w3', type: 'kpi', title: '', source: 'summary', metric: 'maxSpeed', groupBy: 'none', span: 1 },
-  { id: 'w4', type: 'bar', title: '', source: 'overspeed', metric: 'count', groupBy: 'device', span: 2 },
-  { id: 'w5', type: 'pie', title: '', source: 'trips', metric: 'distance', groupBy: 'device', span: 1 },
-  { id: 'w6', type: 'line', title: '', source: 'trips', metric: 'distance', groupBy: 'day', span: 3 },
+  {
+    id: 'w1',
+    type: 'kpi',
+    title: '',
+    source: 'trips',
+    metric: 'distance',
+    groupBy: 'none',
+    span: 1,
+  },
+  {
+    id: 'w2',
+    type: 'kpi',
+    title: '',
+    source: 'overspeed',
+    metric: 'count',
+    groupBy: 'none',
+    span: 1,
+  },
+  {
+    id: 'w3',
+    type: 'kpi',
+    title: '',
+    source: 'summary',
+    metric: 'maxSpeed',
+    groupBy: 'none',
+    span: 1,
+  },
+  {
+    id: 'w4',
+    type: 'bar',
+    title: '',
+    source: 'overspeed',
+    metric: 'count',
+    groupBy: 'device',
+    span: 2,
+  },
+  {
+    id: 'w5',
+    type: 'pie',
+    title: '',
+    source: 'trips',
+    metric: 'distance',
+    groupBy: 'device',
+    span: 1,
+  },
+  {
+    id: 'w6',
+    type: 'line',
+    title: '',
+    source: 'trips',
+    metric: 'distance',
+    groupBy: 'day',
+    span: 3,
+  },
 ];

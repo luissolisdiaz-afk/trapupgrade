@@ -21,7 +21,6 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import jakarta.inject.Inject;
 import org.traccar.BaseProtocol;
 import org.traccar.BaseProtocolDecoder;
 import org.traccar.NetworkMessage;
@@ -44,6 +43,7 @@ import org.traccar.model.Position;
 import org.traccar.model.WifiAccessPoint;
 import org.traccar.session.DeviceSession;
 
+import jakarta.inject.Inject;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;

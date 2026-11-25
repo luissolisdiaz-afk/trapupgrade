@@ -37,8 +37,6 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NearMeIcon from '@mui/icons-material/NearMe';
-import AltRouteIcon from '@mui/icons-material/AltRoute';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import EngineLockIcon from './EngineLockIcon';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -58,7 +56,7 @@ import { devicesActions, messagesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
 import fetchOrThrow from '../util/fetchOrThrow';
-import { formatStatus, formatTime } from '../util/formatter';
+import { formatTime } from '../util/formatter';
 import { speedFromKnots, speedUnitString } from '../util/converter';
 import { mapIconKey, mapIcons } from '../../map/core/preloadImages';
 
@@ -150,14 +148,18 @@ const useStyles = makeStyles()((theme, { desktopPadding }) => ({
   },
 }));
 
-
 const SummaryItem = ({ icon, primary, secondary, wide }) => {
   const { classes } = useStyles({ desktopPadding: 0 });
   return (
     <div className={classes.summaryItem} style={wide ? { gridColumn: '1 / -1' } : undefined}>
       {icon}
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle1" color="textPrimary" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+        <Typography
+          variant="subtitle1"
+          color="textPrimary"
+          fontWeight={600}
+          sx={{ lineHeight: 1.2 }}
+        >
           {primary}
         </Typography>
         <Typography variant="caption" color="textSecondary" noWrap component="div">
@@ -207,7 +209,20 @@ const useStreetAddress = (position) => {
   return address;
 };
 
-const LIVE_KEYS = ['speed', 'batteryLevel', 'battery', 'power', 'rssi', 'ignition', 'motion', 'charge', 'sat', 'hdop', 'blocked', 'alarm'];
+const LIVE_KEYS = [
+  'speed',
+  'batteryLevel',
+  'battery',
+  'power',
+  'rssi',
+  'ignition',
+  'motion',
+  'charge',
+  'sat',
+  'hdop',
+  'blocked',
+  'alarm',
+];
 
 const ActionButton = ({ icon, label, onClick, href, color = 'default', disabled }) => (
   <ButtonBase
@@ -294,7 +309,10 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     'fixTime,address,speed,totalDistance',
   );
 
-  const shownKeys = positionItems.split(',').map((key) => key.trim()).filter(Boolean);
+  const shownKeys = positionItems
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean);
   const inSummary = (key) => shownKeys.includes(key);
   const SUMMARY_KEYS = ['speed', 'fixTime', 'address'];
 
@@ -320,7 +338,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     if (navigator.share) {
       navigator.share({ title: text, text, url }).catch(() => {});
     } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(`${text}: ${url}`)}`, '_blank', 'noopener');
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(`${text}: ${url}`)}`,
+        '_blank',
+        'noopener',
+      );
     }
   };
 
@@ -336,7 +358,8 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const [quickConfirm, setQuickConfirm] = useState(null);
   const [lockChoice, setLockChoice] = useState(false);
   const [assumedLock, setAssumedLock] = useState(null);
-  const lockMaxSpeed = Number(useSelector((state) => state.session.server.attributes['ui.lockMaxSpeed'])) || 0;
+  const lockMaxSpeed =
+    Number(useSelector((state) => state.session.server.attributes['ui.lockMaxSpeed'])) || 0;
 
   useEffect(() => {
     try {
@@ -447,7 +470,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
             <Card elevation={6} className={classes.card}>
               <div className={cx('draggable-header', classes.titleRow)}>
                 <Avatar sx={{ bgcolor: device.status === 'online' ? '#2e9e44' : '#9e9e9e' }}>
-                  <img className={classes.icon} src={mapIcons[mapIconKey(device.category)]} alt="" />
+                  <img
+                    className={classes.icon}
+                    src={mapIcons[mapIconKey(device.category)]}
+                    alt=""
+                  />
                 </Avatar>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="h6" fontWeight={700} noWrap>
@@ -459,12 +486,13 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     </Typography>
                   )}
                 </div>
-                <Chip
+                <Chip size="small" color={simpleState.color} label={simpleState.label} />
+                <IconButton
                   size="small"
-                  color={simpleState.color}
-                  label={simpleState.label}
-                />
-                <IconButton size="small" aria-label={t('sharedClose')} onClick={onClose} onTouchStart={onClose}>
+                  aria-label={t('sharedClose')}
+                  onClick={onClose}
+                  onTouchStart={onClose}
+                >
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </div>
@@ -553,7 +581,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Collapse>
                 </CardContent>
               )}
-              <CardActions className={classes.actions} disableSpacing sx={{ justifyContent: 'space-around', gap: 0.5, p: 1.5, pt: 0 }}>
+              <CardActions
+                className={classes.actions}
+                disableSpacing
+                sx={{ justifyContent: 'space-around', gap: 0.5, p: 1.5, pt: 0 }}
+              >
                 <ActionButton
                   icon={<PlayArrowIcon />}
                   label={t('cardTodayRoute')}
@@ -609,16 +641,23 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       }[lockState],
                     )}
                     color={
-                      { locked: 'error', lockedSent: 'error', unlocked: 'success', unlockedSent: 'success' }[
-                        lockState
-                      ] || 'default'
+                      {
+                        locked: 'error',
+                        lockedSent: 'error',
+                        unlocked: 'success',
+                        unlockedSent: 'success',
+                      }[lockState] || 'default'
                     }
                     disabled={disableActions}
                     onClick={onLockButton}
                   />
                 )}
                 {quickCommands
-                  .filter((command) => !singleLock || !['lock', 'unlock'].includes(command.attributes?.quickActionKind))
+                  .filter(
+                    (command) =>
+                      !singleLock ||
+                      !['lock', 'unlock'].includes(command.attributes?.quickActionKind),
+                  )
                   .map((command) => {
                     const kind = command.attributes?.quickActionKind;
                     const Icon = { lock: LockIcon, unlock: LockOpenIcon }[kind] || BoltIcon;

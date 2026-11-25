@@ -33,6 +33,7 @@ import org.traccar.session.cache.CacheManager;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -121,7 +122,7 @@ public class NotificationFormatter {
                 "event", eventText,
                 "link", link);
 
-        Map<String, String> html = new java.util.HashMap<>();
+        Map<String, String> html = new HashMap<>();
         plain.forEach((key, value) -> html.put(key, escapeHtml(value)));
         html.put("link", "<a href=\"" + escapeHtml(link) + "\">" + escapeHtml(link) + "</a>");
 

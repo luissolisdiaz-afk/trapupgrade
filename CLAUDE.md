@@ -28,6 +28,7 @@ Checkstyle prohíbe imports sin usar. Instalación necesita `schema/` y `templat
 - Mantenimientos simples por perfil (distancia, horas, fecha), errores del servidor en español, reconexión del socket, compartir enlace sin error 409.
 - Accesibilidad según Web Interface Guidelines de Vercel (nombres en botones de icono, teclado, `lang`).
 - Tarjeta de vehículo: resumen (velocidad, última señal, dirección) vinculado a "Información emergente"; patente visible.
+- Revisión automática en GitHub Actions (`.github/workflows/revision.yml`): compila y prueba `server/` (checkstyle incluido), lint y build de `web/`, y comprueba que `server-patch.patch` coincide con `server/`.
 
 ## Pendiente / ideas
 - Probar todo con equipos reales (GPS GT06/VL110C, dashcam JT808/JT1078 de ULV: puertos 5058 JT808, 5059 video, 5060 adjuntos; `web.url` debe apuntar al dominio del servidor).

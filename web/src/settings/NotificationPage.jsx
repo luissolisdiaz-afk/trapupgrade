@@ -44,9 +44,12 @@ const NotificationPage = () => {
   useAsyncTask(
     async ({ signal }) => {
       if (!id) {
-        const response = await fetchOrThrow(`api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`, {
-          signal,
-        });
+        const response = await fetchOrThrow(
+          `api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`,
+          {
+            signal,
+          },
+        );
         setDevices(await response.json());
       }
     },
@@ -63,16 +66,20 @@ const NotificationPage = () => {
   // guarda el modo (límite del mapa o velocidad propia) en cada equipo.
   const onItemSaved = async (notification) => {
     for (const device of selected) {
-      // eslint-disable-next-line no-await-in-loop
-      await fetchOrThrow('api/permissions', jsonBody('POST', { deviceId: device.id, notificationId: notification.id }));
+      await fetchOrThrow(
+        'api/permissions',
+        jsonBody('POST', { deviceId: device.id, notificationId: notification.id }),
+      );
       if (notification.type === 'deviceOverspeed') {
-        // eslint-disable-next-line no-await-in-loop
         const [full] = await (await fetchOrThrow(`api/devices?id=${device.id}`)).json();
-        const attributes = { ...full.attributes, speedLimitMode: speedMode === 'map' ? 'map' : 'fixed' };
+        const attributes = {
+          ...full.attributes,
+          speedLimitMode: speedMode === 'map' ? 'map' : 'fixed',
+        };
         if (speedMode === 'custom' && Number(speedKmh) > 0) {
           attributes.speedLimit = Number((Number(speedKmh) / 1.852).toFixed(2));
         }
-        // eslint-disable-next-line no-await-in-loop
+
         await fetchOrThrow(`api/devices/${device.id}`, jsonBody('PUT', { ...full, attributes }));
       }
     }
@@ -146,12 +153,19 @@ const NotificationPage = () => {
                   }}
                   getOptionLabel={(d) => `${d.name}`}
                   isOptionEqualToValue={(a, b) => a.id === b.id}
-                  renderInput={(params) => <TextField {...params} label={t('notificationDevices')} />}
+                  renderInput={(params) => (
+                    <TextField {...params} label={t('notificationDevices')} />
+                  )}
                 />
               )}
               {!id && item.type === 'deviceOverspeed' && (
                 <>
-                  <TextField select value={speedMode} onChange={(e) => setSpeedMode(e.target.value)} label={t('speedModeLabel')}>
+                  <TextField
+                    select
+                    value={speedMode}
+                    onChange={(e) => setSpeedMode(e.target.value)}
+                    label={t('speedModeLabel')}
+                  >
                     <MenuItem value="map">{t('speedModeMap')}</MenuItem>
                     <MenuItem value="custom">{t('speedModeCustom')}</MenuItem>
                   </TextField>

@@ -201,7 +201,8 @@ const DeviceRow = ({ devices, index, style }) => {
             {(() => {
               const online = item.status === 'online';
               const speed = Math.round(speedFromKnots(position.speed, speedUnit));
-              const limitKnots = Number(item.attributes?.speedLimit) || Number(serverSpeedLimit) || 0;
+              const limitKnots =
+                Number(item.attributes?.speedLimit) || Number(serverSpeedLimit) || 0;
               const limit = limitKnots ? Math.round(speedFromKnots(limitKnots, speedUnit)) : 0;
               let tone = classes.speedStopped;
               if (online && limit && speed > limit) tone = classes.speedOver;
@@ -209,7 +210,9 @@ const DeviceRow = ({ devices, index, style }) => {
               return (
                 <Typography variant="body1" className={`${classes.speed} ${tone}`}>
                   {online ? speed : '—'}
-                  {online && <span className={classes.speedUnit}>{speedUnitString(speedUnit, t)}</span>}
+                  {online && (
+                    <span className={classes.speedUnit}>{speedUnitString(speedUnit, t)}</span>
+                  )}
                 </Typography>
               );
             })()}

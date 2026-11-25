@@ -95,7 +95,7 @@ public class DeviceResource extends BaseObjectResource<Device> {
         return super.add(entity);
     }
 
-    private static final java.util.List<String> CLIENT_ATTRIBUTES =
+    private static final List<String> CLIENT_ATTRIBUTES =
             java.util.List.of("deviceImage", "plate", "speedLimit", "speedLimitMode");
 
     @Override

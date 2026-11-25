@@ -18,7 +18,12 @@ const PasswordField = ({ slotProps, ...others }) => {
           ...slotProps?.input,
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton aria-label={t('sharedShowPassword')} onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+              <IconButton
+                aria-label={t('sharedShowPassword')}
+                onClick={() => setShowPassword(!showPassword)}
+                edge="end"
+                size="small"
+              >
                 {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
               </IconButton>
             </InputAdornment>

@@ -102,7 +102,8 @@ const DeviceList = ({ devices }) => {
     [dispatch],
   );
 
-  const onToggle = (key) => setCollapsedGroups({ ...collapsedGroups, [key]: !collapsedGroups[key] });
+  const onToggle = (key) =>
+    setCollapsedGroups({ ...collapsedGroups, [key]: !collapsedGroups[key] });
 
   const rows = useMemo(() => {
     // full name of a group including its parents, e.g. "Empresa / Flota"

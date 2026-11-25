@@ -66,7 +66,10 @@ const total = (rows, metric) => {
   if (metric === 'averageSpeed') {
     return rows.length ? rows.reduce((acc, r) => acc + r.value, 0) / rows.length : 0;
   }
-  return rows.reduce((acc, r) => (metric === 'maxSpeed' ? Math.max(acc, r.value) : acc + r.value), 0);
+  return rows.reduce(
+    (acc, r) => (metric === 'maxSpeed' ? Math.max(acc, r.value) : acc + r.value),
+    0,
+  );
 };
 
 const format = (value, digits = 1) =>

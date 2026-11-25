@@ -62,7 +62,6 @@ const App = () => {
     } catch {
       // sessionStorage no disponible
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useAsyncTask(

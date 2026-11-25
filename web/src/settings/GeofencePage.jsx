@@ -42,7 +42,10 @@ const GeofencePage = () => {
   // equipos disponibles y los que ya tienen esta geocerca
   useAsyncTask(
     async ({ signal }) => {
-      const response = await fetchOrThrow(`api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`, { signal });
+      const response = await fetchOrThrow(
+        `api/devices?${admin ? 'all=true&' : ''}excludeAttributes=true`,
+        { signal },
+      );
       const list = await response.json();
       setDevices(list);
       if (id) {
@@ -72,11 +75,9 @@ const GeofencePage = () => {
     const before = initial.map((d) => d.id);
     const after = selected.map((d) => d.id);
     for (const deviceId of after.filter((d) => !before.includes(d))) {
-      // eslint-disable-next-line no-await-in-loop
       await permission('POST', deviceId, result.id);
     }
     for (const deviceId of before.filter((d) => !after.includes(d))) {
-      // eslint-disable-next-line no-await-in-loop
       await permission('DELETE', deviceId, result.id);
     }
   };

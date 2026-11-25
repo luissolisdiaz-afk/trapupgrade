@@ -226,13 +226,25 @@ const DashboardPage = () => {
         {truncated && <Alert severity="info">{t('builderTruncated')}</Alert>}
         {loading && <LinearProgress />}
 
-        <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          }}
+        >
           <Panel icon={<WifiIcon />} title={t('dashConnectivity')}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{ width: 150, height: 150 }}>
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
                       {pieData.map((entry) => (
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
@@ -243,8 +255,13 @@ const DashboardPage = () => {
               </Box>
               <Box sx={{ flex: 1 }}>
                 {pieData.map((entry) => (
-                  <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.3 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: entry.color }} />
+                  <Box
+                    key={entry.name}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.3 }}
+                  >
+                    <Box
+                      sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: entry.color }}
+                    />
                     <Typography variant="body2" sx={{ flex: 1 }}>
                       {entry.name}
                     </Typography>
@@ -283,7 +300,13 @@ const DashboardPage = () => {
           </Panel>
         </Box>
 
-        <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          }}
+        >
           <Panel icon={<WarningAmberIcon sx={{ color: brand.red }} />} title={t('dashCritical')}>
             {critical.length === 0 ? (
               <Empty text={t('dashNoCritical')} />
@@ -295,7 +318,11 @@ const DashboardPage = () => {
                       primary={`${deviceName(e.deviceId)} · ${t(prefixString('alarm', e.attributes.alarm))}`}
                       secondary={`${formatTime(e.eventTime, 'seconds')}${e.count > 1 ? ` · ${e.count} ${t('dashTimes')}` : ''}`}
                     />
-                    <Chip size="small" color="error" label={t(prefixString('alarm', e.attributes.alarm))} />
+                    <Chip
+                      size="small"
+                      color="error"
+                      label={t(prefixString('alarm', e.attributes.alarm))}
+                    />
                   </ListItem>
                 ))}
               </List>
@@ -381,8 +408,16 @@ const DashboardPage = () => {
           }
         >
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-            <Stat label={t('dashKm')} value={`${Math.round(data.km).toLocaleString()} km`} color={brand.blue} />
-            <Stat label={t('dashIdle')} value={`${data.idleHours.toFixed(1)} h`} color={brand.orange} />
+            <Stat
+              label={t('dashKm')}
+              value={`${Math.round(data.km).toLocaleString()} km`}
+              color={brand.blue}
+            />
+            <Stat
+              label={t('dashIdle')}
+              value={`${data.idleHours.toFixed(1)} h`}
+              color={brand.orange}
+            />
             <Stat label={t('dashOverspeedToday')} value={data.overspeedToday} color={brand.red} />
           </Box>
           <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
