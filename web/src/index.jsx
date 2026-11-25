@@ -11,6 +11,7 @@ import NativeInterface from './common/components/NativeInterface';
 import ServerProvider from './ServerProvider';
 import ErrorBoundary from './ErrorBoundary';
 import AppThemeProvider from './AppThemeProvider';
+import CookieBanner from './common/components/CookieBanner';
 
 preloadImages();
 
@@ -27,6 +28,7 @@ root.render(
                 <Navigation />
               </BrowserRouter>
               <MessageHandler />
+              <CookieBanner />
               <NativeInterface />
             </ServerProvider>
           </AppThemeProvider>

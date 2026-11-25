@@ -75,6 +75,7 @@ import DashboardGate from './dashboard/DashboardGate';
 const CamerasDashboardPage = lazy(() => import('./cameras/CamerasDashboardPage'));
 const CamerasEventsPage = lazy(() => import('./cameras/CamerasEventsPage'));
 const AuditPage = lazy(() => import('./reports/AuditPage'));
+const LegalPage = lazy(() => import('./settings/LegalPage'));
 
 const MaintenanceSwitch = () => {
   const admin = useAdministrator();
@@ -233,6 +234,7 @@ const Navigation = () => {
             <Route path="notification/:id" element={<NotificationPage />} />
             <Route path="notification" element={<NotificationPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
+            <Route path="legal" element={<LegalPage />} />
             <Route path="server" element={<ServerPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="user/:id/devices" element={<UserDevicesPage />} />

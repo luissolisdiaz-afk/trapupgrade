@@ -11,6 +11,7 @@ import { sessionActions } from './store';
 import UpdateController from './UpdateController';
 import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
+import useLegalUrls from './common/util/useLegalUrls';
 import Loader from './common/components/Loader';
 import useFeatures from './common/util/useFeatures';
 import fetchOrThrow from './common/util/fetchOrThrow';
@@ -40,16 +41,22 @@ const App = () => {
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const newServer = useSelector((state) => state.session.server.newServer);
-  const termsUrl = useSelector((state) => state.session.server.attributes.termsUrl);
+  const { termsRequired, termsVersion } = useLegalUrls();
   const user = useSelector((state) => state.session.user);
 
   const acceptTerms = useCatch(async () => {
-    const response = await fetchOrThrow(`api/users/${user.id}`, {
-      method: 'PUT',
+    const response = await fetchOrThrow('api/legal/terms', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...user, attributes: { ...user.attributes, termsAccepted: true } }),
+      body: JSON.stringify({ version: termsVersion }),
     });
     dispatch(sessionActions.updateUser(await response.json()));
+  });
+
+  const rejectTerms = useCatch(async () => {
+    await fetch('api/session', { method: 'DELETE' });
+    navigate('/login');
+    dispatch(sessionActions.updateUser(null));
   });
 
   useEffect(() => {
@@ -83,8 +90,15 @@ const App = () => {
   if (user == null) {
     return <Loader />;
   }
-  if (termsUrl && !user.attributes.termsAccepted) {
-    return <TermsDialog open onCancel={() => navigate('/login')} onAccept={() => acceptTerms()} />;
+  if (termsRequired && String(user.attributes.termsVersion ?? '') !== termsVersion) {
+    return (
+      <TermsDialog
+        open
+        updated={Boolean(user.attributes.termsVersion)}
+        onCancel={rejectTerms}
+        onAccept={acceptTerms}
+      />
+    );
   }
   return (
     <>

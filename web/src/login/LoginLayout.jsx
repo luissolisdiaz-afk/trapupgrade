@@ -2,6 +2,7 @@ import { useMediaQuery, Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import LogoImage from './LogoImage';
+import LegalFooter from './LegalFooter';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -33,6 +34,13 @@ const useStyles = makeStyles()((theme) => ({
       padding: theme.spacing(0, 25, 0, 0),
     },
   },
+  center: {
+    display: 'flex',
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   form: {
     maxWidth: theme.spacing(52),
     padding: theme.spacing(5),
@@ -52,7 +60,10 @@ const LoginLayout = ({ children }) => {
         )}
       </div>
       <Paper className={classes.paper}>
-        <form className={classes.form}>{children}</form>
+        <div className={classes.center}>
+          <form className={classes.form}>{children}</form>
+        </div>
+        <LegalFooter />
       </Paper>
     </main>
   );

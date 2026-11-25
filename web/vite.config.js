@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react-swc';
 import svgr from 'vite-plugin-svgr';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import licensesPlugin from './licenses-plugin';
 
 export default defineConfig(() => ({
   base: './',
@@ -19,6 +20,7 @@ export default defineConfig(() => ({
   },
   plugins: [
     svgr(),
+    licensesPlugin(),
     react(),
     VitePWA({
       injectRegister: false,

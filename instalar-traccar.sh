@@ -32,6 +32,10 @@ sudo cp -r "$WORK/traccar/schema" "$WORK/traccar/templates" /opt/traccar/   # es
 if ! grep -q "geocoder.type" /opt/traccar/conf/traccar.xml; then
   sudo sed -i "s#</properties>#    <entry key='geocoder.type'>nominatim</entry>\n    <entry key='geocoder.url'>https://nominatim.openstreetmap.org/reverse</entry>\n    <entry key='geocoder.language'>es</entry>\n    <entry key='geocoder.cacheSize'>2000</entry>\n</properties>#" /opt/traccar/conf/traccar.xml
 fi
+# privacidad: no enviar estadisticas de uso a traccar.org (por defecto Traccar las envia cada dia)
+if ! grep -q "server.statistics" /opt/traccar/conf/traccar.xml; then
+  sudo sed -i "s#</properties>#    <entry key='server.statistics'></entry>\n</properties>#" /opt/traccar/conf/traccar.xml
+fi
 sudo rm -rf /opt/traccar/web/* && sudo cp -r "$WEBBUILD"/* /opt/traccar/web/
 sudo tee /etc/systemd/system/traccar.service >/dev/null <<'UNIT'
 [Unit]
