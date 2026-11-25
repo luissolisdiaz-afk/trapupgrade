@@ -193,7 +193,8 @@ const ResolvedLocalizationProvider = ({ language, setLocalLanguage, children }) 
   useEffect(() => {
     dayjs.locale(dayjsName);
     document.dir = direction;
-  }, [dayjsName, direction]);
+    document.documentElement.lang = language.replace('_', '-');
+  }, [dayjsName, direction, language]);
 
   return <LocalizationContext value={value}>{children}</LocalizationContext>;
 };
