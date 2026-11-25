@@ -48,8 +48,8 @@ import java.util.concurrent.ExecutionException;
 /**
  * Users change their own phone number with a verification code. Notifications (WhatsApp, SMS) are sent to this
  * number from the company accounts, so the number is only saved after the code is confirmed. The code goes by
- * WhatsApp to the new number when WhatsApp is configured (this proves the user has that phone); otherwise it goes by
- * email to the account.
+ * email to the account (decision of the owner); only when email is not configured it goes by WhatsApp to the new
+ * number.
  */
 @Path("phone")
 @Produces(MediaType.APPLICATION_JSON)
@@ -150,13 +150,13 @@ public class PhoneResource extends BaseResource {
                 + ". Vence en 10 minutos. Si no lo pediste, ignora este mensaje.";
         String channel;
         try {
-            if (NotificatorEvolution.isConfigured(cacheManager.getServer())) {
-                notificatorEvolution.sendText(phone, text).get();
-                channel = "whatsapp";
-            } else if (mailManager.getEmailEnabled()) {
+            if (mailManager.getEmailEnabled()) {
                 mailManager.sendMessage(user, true, "Código para cambiar tu teléfono",
                         "<p>" + text + "</p><p>Teléfono nuevo: " + phone + "</p>").get();
                 channel = "email";
+            } else if (NotificatorEvolution.isConfigured(cacheManager.getServer())) {
+                notificatorEvolution.sendText(phone, text).get();
+                channel = "whatsapp";
             } else {
                 throw new WebApplicationException(Response.status(Response.Status.SERVICE_UNAVAILABLE)
                         .entity("Phone verification is not available").build());

@@ -160,6 +160,40 @@ const UserPage = () => {
                 label={t('userEmail')}
                 disabled={fixedEmail && item.id === currentUser.id}
               />
+              <TextField
+                value={item.phone || ''}
+                onChange={(e) => setItem({ ...item, phone: e.target.value })}
+                label={t('sharedPhone')}
+                placeholder={!admin && item.id === currentUser.id ? t('userPhoneAdd') : undefined}
+                helperText={!admin && item.id === currentUser.id ? t('userPhoneHelp') : undefined}
+                onClick={
+                  !admin && item.id === currentUser.id ? () => setPhoneDialog(true) : undefined
+                }
+                slotProps={
+                  !admin && item.id === currentUser.id
+                    ? {
+                        input: {
+                          readOnly: true,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Button size="small" onClick={() => setPhoneDialog(true)}>
+                                {t(item.phone ? 'userPhoneChange' : 'userPhoneAddButton')}
+                              </Button>
+                            </InputAdornment>
+                          ),
+                        },
+                      }
+                    : undefined
+                }
+              />
+              <PhoneChangeDialog
+                open={phoneDialog}
+                onClose={() => setPhoneDialog(false)}
+                onChanged={(user) => {
+                  setItem({ ...item, phone: user.phone });
+                  dispatch(sessionActions.updateUser(user));
+                }}
+              />
               {!openIdForced && (
                 <PasswordField
                   onChange={(e) => setItem({ ...item, password: e.target.value })}
@@ -198,35 +232,6 @@ const UserPage = () => {
               <Typography variant="subtitle1">{t('sharedPreferences')}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
-              <TextField
-                value={item.phone || ''}
-                onChange={(e) => setItem({ ...item, phone: e.target.value })}
-                label={t('sharedPhone')}
-                slotProps={
-                  !admin && item.id === currentUser.id
-                    ? {
-                        input: {
-                          readOnly: true,
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <Button size="small" onClick={() => setPhoneDialog(true)}>
-                                {t('userPhoneChange')}
-                              </Button>
-                            </InputAdornment>
-                          ),
-                        },
-                      }
-                    : undefined
-                }
-              />
-              <PhoneChangeDialog
-                open={phoneDialog}
-                onClose={() => setPhoneDialog(false)}
-                onChanged={(user) => {
-                  setItem({ ...item, phone: user.phone });
-                  dispatch(sessionActions.updateUser(user));
-                }}
-              />
               <FormControl>
                 <InputLabel>{t('mapDefault')}</InputLabel>
                 <Select

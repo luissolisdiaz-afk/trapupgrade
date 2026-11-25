@@ -46,5 +46,5 @@ export default [
   ['Invalid phone number', 'serverError42'],
   ['Invalid or expired code', 'serverError43'],
   ['Failed to send verification code', 'serverError44'],
-  ['Phone verification is not available', 'serverError44'],
+  ['Phone verification is not available', 'serverError45'],
 ];
