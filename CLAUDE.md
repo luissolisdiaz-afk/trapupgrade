@@ -25,6 +25,7 @@ Checkstyle prohíbe imports sin usar. Instalación necesita `schema/` y `templat
 - Perfiles por tipo de cliente (`useClientType`: admin / empresa = Dashboard activado / particular) y hoja móvil del cliente particular con deslizar para cortar/habilitar motor.
 - Corte de motor por equipo (relé / Traccar / personalizado), catálogo de comandos con asignación a equipo.
 - Equipos por usuario, edición restringida para clientes, geocercas con asignación de equipos, eventos con selector de equipos y exceso de velocidad (límite del mapa vía OSM/Overpass o velocidad propia).
+- Alertas de eventos por WhatsApp con Evolution API (número de la empresa configurado en Configuración → Servidor; notificador `evolution`).
 - Mantenimientos simples por perfil (distancia, horas, fecha), errores del servidor en español, reconexión del socket, compartir enlace sin error 409.
 - Accesibilidad según Web Interface Guidelines de Vercel (nombres en botones de icono, teclado, `lang`).
 - Tarjeta de vehículo: resumen (velocidad, última señal, dirección) vinculado a "Información emergente"; patente visible.

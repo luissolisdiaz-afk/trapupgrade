@@ -1561,6 +1561,36 @@ public final class Keys {
             "en_US");
 
     /**
+     * Evolution API (self-hosted WhatsApp gateway) base address, for example https://whatsapp.example.com.
+     * Server attribute edited from the admin panel.
+     */
+    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_URL = new StringConfigKey(
+            "evolution.url",
+            List.of(KeyType.SERVER));
+
+    /**
+     * Evolution API key. It is hidden from every API response.
+     */
+    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_API_KEY = new StringConfigKey(
+            "evolution.apiKey",
+            List.of(KeyType.SERVER));
+
+    /**
+     * Evolution API instance name, that is the company WhatsApp number connected to Evolution.
+     */
+    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_INSTANCE = new StringConfigKey(
+            "evolution.instance",
+            List.of(KeyType.SERVER));
+
+    /**
+     * Country code added to user phone numbers written without it. Default value is 56 (Chile).
+     */
+    public static final ConfigKey<String> NOTIFICATOR_EVOLUTION_COUNTRY_CODE = new StringConfigKey(
+            "evolution.countryCode",
+            List.of(KeyType.SERVER),
+            "56");
+
+    /**
      * Enable user expiration email notification.
      */
     public static final ConfigKey<Boolean> NOTIFICATION_EXPIRATION_USER = new BooleanConfigKey(

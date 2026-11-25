@@ -64,6 +64,13 @@ import java.util.TimeZone;
 @Consumes(MediaType.APPLICATION_JSON)
 public class ServerResource extends BaseResource {
 
+    /**
+     * Shown to administrators instead of secret server attributes. Saving it back keeps the stored value.
+     */
+    public static final String SECRET_MASK = "********";
+
+    private static final List<String> SECRET_ATTRIBUTES = List.of(Keys.NOTIFICATOR_EVOLUTION_API_KEY.getKey());
+
     @Inject
     private Config config;
 
@@ -108,17 +115,44 @@ public class ServerResource extends BaseResource {
         } else {
             server.setNewServer(UserUtil.isEmpty(storage));
         }
+        boolean administrator = user != null && user.getAdministrator();
+        for (String key : SECRET_ATTRIBUTES) {
+            if (administrator && !server.getString(key, "").isEmpty()) {
+                server.set(key, SECRET_MASK);
+            } else {
+                server.removeAttribute(key);
+            }
+        }
+        if (!administrator) {
+            server.getAttributes().keySet().removeIf(key -> key.startsWith("evolution."));
+        }
         return server;
     }
 
     @PUT
     public Response update(Server server) throws Exception {
         permissionsService.checkAdmin(getUserId());
+        Server stored = storage.getObject(Server.class, new Request(new Columns.All()));
+        for (String key : SECRET_ATTRIBUTES) {
+            if (SECRET_MASK.equals(server.getString(key))) {
+                String value = stored.getString(key);
+                if (value != null) {
+                    server.set(key, value);
+                } else {
+                    server.removeAttribute(key);
+                }
+            }
+        }
         storage.updateObject(server, new Request(
                 new Columns.Exclude("id"),
                 new Condition.Equals("id", server.getId())));
         cacheManager.invalidateObject(true, Server.class, server.getId(), ObjectOperation.UPDATE);
         actionLogger.edit(request, getUserId(), server);
+        for (String key : SECRET_ATTRIBUTES) {
+            if (!server.getString(key, "").isEmpty()) {
+                server.set(key, SECRET_MASK);
+            }
+        }
         return Response.ok(server).build();
     }
 
