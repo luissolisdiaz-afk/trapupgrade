@@ -3,10 +3,16 @@
 # Pensado para la Raspberry Pi 4 (arm64) o un VPS Ubuntu/Debian. Uso:
 #   sudo bash instalar-evolution.sh
 # La clave API se genera aqui y queda solo en /opt/evolution/.env (nunca en el repositorio).
+# Por seguridad Evolution escucha solo dentro de esta maquina (127.0.0.1): Docker se salta el firewall (ufw),
+# asi que publicarlo en todas las interfaces lo dejaria abierto a internet. Para abrir el panel usa un tunel:
+#   ssh -L 8080:localhost:8080 usuario@servidor   y luego http://localhost:8080/manager
+# Solo en una red de casa (Raspberry detras del router) puedes abrirlo a la red local:
+#   sudo ESCUCHAR=0.0.0.0 bash instalar-evolution.sh
 set -euo pipefail
 
 DIR=/opt/evolution
 PUERTO=${PUERTO:-8080}
+ESCUCHAR=${ESCUCHAR:-127.0.0.1}
 IMAGEN=${IMAGEN:-evoapicloud/evolution-api:v2.3.7}
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -58,7 +64,7 @@ services:
     image: ${IMAGEN}
     restart: always
     ports:
-      - "${PUERTO}:8080"
+      - "${ESCUCHAR}:${PUERTO}:8080"
     env_file: .env
     volumes:
       - evolution_instances:/evolution/instances
@@ -94,14 +100,21 @@ docker compose up -d
 IP=$(hostname -I | awk '{print $1}')
 CLAVE_API=$(grep '^AUTHENTICATION_API_KEY=' .env | cut -d= -f2)
 echo
-echo "Listo. Evolution API queda en: http://${IP}:${PUERTO}"
-echo "Panel para crear la instancia y escanear el QR: http://${IP}:${PUERTO}/manager"
-echo "Clave API (guardala en un lugar seguro, no la compartas):"
-echo "  ${CLAVE_API}"
+if [ "$ESCUCHAR" = "127.0.0.1" ]; then
+  echo "Listo. Evolution API escucha solo dentro de esta maquina: http://localhost:${PUERTO}"
+  echo "Para abrir el panel desde tu computador, abre un tunel y deja esa ventana abierta:"
+  echo "  ssh -L ${PUERTO}:localhost:${PUERTO} $(logname 2>/dev/null || echo usuario)@${IP}"
+  echo "y entra en el navegador a: http://localhost:${PUERTO}/manager"
+else
+  echo "Listo. Evolution API queda en tu red local: http://${IP}:${PUERTO}"
+  echo "Panel para crear la instancia y escanear el QR: http://${IP}:${PUERTO}/manager"
+  echo "No abras el puerto ${PUERTO} en el router."
+fi
+echo
+echo "Para ver la clave API (no la compartas):"
+echo "  sudo grep AUTHENTICATION_API_KEY ${DIR}/.env"
 echo
 echo "En Traccar (Configuracion > Servidor > WhatsApp de la empresa):"
 echo "  Direccion: http://localhost:${PUERTO}   (si Traccar esta en esta misma maquina)"
 echo "  Instancia: el nombre que le pongas en el panel"
-echo "  Clave API: la de arriba"
-echo
-echo "No abras el puerto ${PUERTO} en el router: solo se usa dentro de tu red."
+echo "  Clave API: la que muestra el comando de arriba"
