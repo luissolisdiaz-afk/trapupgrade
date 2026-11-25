@@ -192,7 +192,7 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [deviceId, parked, position?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deviceId, parked, position?.id]);
 
   let engine;
   if (!online) {
@@ -226,7 +226,9 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
     .filter((g) => g && !g.attributes?.watch)
     .map((g) => g.name)[0];
 
-  const ageSeconds = device?.lastUpdate ? Math.round((now - new Date(device.lastUpdate)) / 1000) : null;
+  const ageSeconds = device?.lastUpdate
+    ? Math.round((now - new Date(device.lastUpdate)) / 1000)
+    : null;
   const updated =
     ageSeconds === null
       ? ''
@@ -260,15 +262,24 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
     return () => controller.abort();
   }, [deviceId]);
 
-  const lockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'lock');
-  const unlockCommand = quickCommands.find((it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'unlock');
+  const lockCommand = quickCommands.find(
+    (it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'lock',
+  );
+  const unlockCommand = quickCommands.find(
+    (it) => it.attributes?.quickAction && it.attributes?.quickActionKind === 'unlock',
+  );
   const [assigned, setAssigned] = useState([]);
-  const otherCommands = assigned.filter((it) => !it.attributes?.quickAction && !it.attributes?.autoDevice);
+  const otherCommands = assigned.filter(
+    (it) => !it.attributes?.quickAction && !it.attributes?.autoDevice,
+  );
   const [commandsOpen, setCommandsOpen] = useState(false);
 
   const sendOther = useCatch(async (command) => {
     setCommandsOpen(false);
-    const response = await fetchOrThrow('api/commands/send', json('POST', { ...command, deviceId }));
+    const response = await fetchOrThrow(
+      'api/commands/send',
+      json('POST', { ...command, deviceId }),
+    );
     dispatch(
       messagesActions.push({
         message: t(response.status === 202 ? 'commandQueued' : 'commandSent'),
@@ -337,7 +348,11 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
     if (navigator.share) {
       navigator.share({ title: device.name, text, url }).catch(() => {});
     } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(`${text}: ${url}`)}`, '_blank', 'noopener');
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(`${text}: ${url}`)}`,
+        '_blank',
+        'noopener',
+      );
     }
   });
 
@@ -417,9 +432,7 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
     const list = await (await fetchOrThrow(`api/notifications?deviceId=${deviceId}`)).json();
     const result = {};
     ALERTS.forEach((alert) => {
-      const found = list.find(
-        (n) => n.type === alert.type && n.attributes?.personal === 'alert',
-      );
+      const found = list.find((n) => n.type === alert.type && n.attributes?.personal === 'alert');
       if (found) result[alert.key] = found.id;
     });
     setAlerts(result);
@@ -438,13 +451,16 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
           notificators: 'web',
           attributes: { personal: 'alert', ...(alert.alarms ? { alarms: alert.alarms } : {}) },
         };
-        const notification = await (await fetchOrThrow('api/notifications', json('POST', body))).json();
+        const notification = await (
+          await fetchOrThrow('api/notifications', json('POST', body))
+        ).json();
         await permission('POST', { deviceId, notificationId: notification.id });
         setAlerts((a) => ({ ...a, [alert.key]: notification.id }));
       } else if (alerts[alert.key]) {
         await fetchOrThrow(`api/notifications/${alerts[alert.key]}`, { method: 'DELETE' });
         setAlerts((a) => {
-          const { [alert.key]: removed, ...rest } = a;
+          const rest = { ...a };
+          delete rest[alert.key];
           return rest;
         });
       }
@@ -483,10 +499,19 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
               />
             )}
           </Box>
-          <IconButton size="small" aria-label={t('sharedEdit')} onClick={() => navigate(`/settings/device/${deviceId}`)}>
+          <IconButton
+            size="small"
+            aria-label={t('sharedEdit')}
+            onClick={() => navigate(`/settings/device/${deviceId}`)}
+          >
             <EditIcon />
           </IconButton>
-          <IconButton size="small" aria-label={t('sharedClose')} onClick={onClose} onTouchStart={onClose}>
+          <IconButton
+            size="small"
+            aria-label={t('sharedClose')}
+            onClick={onClose}
+            onTouchStart={onClose}
+          >
             <CloseIcon />
           </IconButton>
         </div>
@@ -587,7 +612,9 @@ const PersonalVehicleSheet = ({ deviceId, position, onClose, desktop }) => {
             sx={{ m: 0, justifyContent: 'space-between' }}
             labelPlacement="start"
             disabled={!position}
-            control={<Switch checked={Boolean(watch)} onChange={(e) => toggleWatch(e.target.checked)} />}
+            control={
+              <Switch checked={Boolean(watch)} onChange={(e) => toggleWatch(e.target.checked)} />
+            }
             label={
               <span className={classes.row}>
                 <ShieldIcon fontSize="small" color="action" />

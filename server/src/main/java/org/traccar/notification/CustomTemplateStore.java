@@ -15,11 +15,11 @@ package org.traccar.notification;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;

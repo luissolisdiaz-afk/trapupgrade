@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, CardActions, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Button,
+  Card,
+  CardActions,
+  IconButton,
+  MenuItem,
+  Select,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { default as Hls, Events } from 'hls.js';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -114,12 +124,22 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
         )}
         {playing && error && <Typography>{t('errorConnection')}</Typography>}
         <div className={classes.overlay}>
-          <Typography variant="caption" noWrap>{device.name}</Typography>
-          {playing && <Typography variant="caption">{`CH${channel} · ${stream ? 'SD' : 'HD'}`}</Typography>}
+          <Typography variant="caption" noWrap>
+            {device.name}
+          </Typography>
+          {playing && (
+            <Typography variant="caption">{`CH${channel} · ${stream ? 'SD' : 'HD'}`}</Typography>
+          )}
         </div>
       </div>
       <CardActions className={classes.bar}>
-        <IconButton size="small" aria-label={playing ? t('cameraStop') : t('cameraPlay')} color={playing ? 'error' : 'primary'} disabled={!playing && !canPlay} onClick={toggle}>
+        <IconButton
+          size="small"
+          aria-label={playing ? t('cameraStop') : t('cameraPlay')}
+          color={playing ? 'error' : 'primary'}
+          disabled={!playing && !canPlay}
+          onClick={toggle}
+        >
           {playing ? <StopIcon /> : <PlayArrowIcon />}
         </IconButton>
         {channels > 1 && (
@@ -129,7 +149,12 @@ const CameraTile = ({ device, channels = 2, playing, canPlay, onPlay, onStop, on
             ))}
           </Select>
         )}
-        <ToggleButtonGroup size="small" exclusive value={stream} onChange={(_, v) => v !== null && setStream(v)}>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={stream}
+          onChange={(_, v) => v !== null && setStream(v)}
+        >
           <ToggleButton value={1}>SD</ToggleButton>
           <ToggleButton value={0}>HD</ToggleButton>
         </ToggleButtonGroup>

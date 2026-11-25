@@ -12,5 +12,7 @@ export default () => {
       position: positions[device.id],
       camera: isCameraDevice(device, positions[device.id]),
     }))
-    .sort((a, b) => Number(b.camera) - Number(a.camera) || a.device.name.localeCompare(b.device.name));
+    .sort(
+      (a, b) => Number(b.camera) - Number(a.camera) || a.device.name.localeCompare(b.device.name),
+    );
 };

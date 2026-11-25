@@ -86,7 +86,10 @@ const formatDuration = (from, to) => {
 
 const recordingKey = (recording) => `${recording.channel}-${recording.startTime}`;
 
-const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+const sleep = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 /**
  * Recording playback (e.g. camera micro SD card).
@@ -139,7 +142,7 @@ const RecordingsPage = () => {
 
   useEffect(() => {
     if (deviceId && at) search();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setError(false);
@@ -195,85 +198,80 @@ const RecordingsPage = () => {
         method: 'DELETE',
       }).catch(() => {});
     };
-  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   return (
     <PageLayout menu={<CamerasMenu />} breadcrumbs={['cameraTitle', 'linkRecordings']}>
-    <div className={classes.root}>
-      <Paper square>
-        <div className={classes.filter}>
-          <TextField
-            select
-            size="small"
-            label={t('sharedDevice')}
-            value={deviceId}
-            onChange={(event) => setDeviceId(event.target.value)}
-            sx={{ minWidth: 200 }}
-          >
-            {cameraItems.map(({ device }) => (
-              <MenuItem key={device.id} value={String(device.id)}>
-                {device.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            size="small"
-            type="number"
-            label={t('commandIndex')}
-            value={channel}
-            onChange={(event) => setChannel(Number(event.target.value) || 1)}
-            sx={{ width: 100 }}
-          />
-          <TextField
-            size="small"
-            type="datetime-local"
-            label={t('reportFrom')}
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            size="small"
-            type="datetime-local"
-            label={t('reportTo')}
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <Button variant="contained" onClick={search} disabled={loading || !deviceId}>
-            {loading ? <CircularProgress size={24} /> : t('reportShow')}
-          </Button>
-        </div>
-      </Paper>
-      <div className={classes.content}>
-        <List className={classes.list} dense>
-          {items?.length === 0 && (
-            <ListItemText sx={{ px: 2 }} primary={t('sharedNoData')} />
-          )}
-          {items?.map((item) => (
-            <ListItemButton
-              key={recordingKey(item)}
-              selected={selected && recordingKey(selected) === recordingKey(item)}
-              onClick={() => setSelected(item)}
+      <div className={classes.root}>
+        <Paper square>
+          <div className={classes.filter}>
+            <TextField
+              select
+              size="small"
+              label={t('sharedDevice')}
+              value={deviceId}
+              onChange={(event) => setDeviceId(event.target.value)}
+              sx={{ minWidth: 200 }}
             >
-              <ListItemText
-                primary={formatTime(item.startTime, 'seconds')}
-                secondary={[
-                  formatDuration(item.startTime, item.endTime),
-                  formatSize(item.size),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              />
-            </ListItemButton>
-          ))}
-        </List>
-        <div className={classes.video}>
-          {error && <Typography>{t('errorConnection')}</Typography>}
-          {selected && !error && <video ref={videoRef} className={classes.player} controls />}
+              {cameraItems.map(({ device }) => (
+                <MenuItem key={device.id} value={String(device.id)}>
+                  {device.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              size="small"
+              type="number"
+              label={t('commandIndex')}
+              value={channel}
+              onChange={(event) => setChannel(Number(event.target.value) || 1)}
+              sx={{ width: 100 }}
+            />
+            <TextField
+              size="small"
+              type="datetime-local"
+              label={t('reportFrom')}
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              size="small"
+              type="datetime-local"
+              label={t('reportTo')}
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button variant="contained" onClick={search} disabled={loading || !deviceId}>
+              {loading ? <CircularProgress size={24} /> : t('reportShow')}
+            </Button>
+          </div>
+        </Paper>
+        <div className={classes.content}>
+          <List className={classes.list} dense>
+            {items?.length === 0 && <ListItemText sx={{ px: 2 }} primary={t('sharedNoData')} />}
+            {items?.map((item) => (
+              <ListItemButton
+                key={recordingKey(item)}
+                selected={selected && recordingKey(selected) === recordingKey(item)}
+                onClick={() => setSelected(item)}
+              >
+                <ListItemText
+                  primary={formatTime(item.startTime, 'seconds')}
+                  secondary={[formatDuration(item.startTime, item.endTime), formatSize(item.size)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+          <div className={classes.video}>
+            {error && <Typography>{t('errorConnection')}</Typography>}
+            {selected && !error && <video ref={videoRef} className={classes.player} controls />}
+          </div>
         </div>
       </div>
-    </div>
     </PageLayout>
   );
 };

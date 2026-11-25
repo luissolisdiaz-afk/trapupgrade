@@ -89,7 +89,7 @@ index 5026acf..0dadbf9 100644
      }
 diff --git a/src/main/java/org/traccar/api/resource/AlarmFileResource.java b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
 new file mode 100644
-index 0000000..a0d55a6
+index 0000000..f227332
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
 @@ -0,0 +1,166 @@
@@ -110,15 +110,6 @@ index 0000000..a0d55a6
 + */
 +package org.traccar.api.resource;
 +
-+import jakarta.inject.Inject;
-+import jakarta.ws.rs.GET;
-+import jakarta.ws.rs.Path;
-+import jakarta.ws.rs.PathParam;
-+import jakarta.ws.rs.Produces;
-+import jakarta.ws.rs.QueryParam;
-+import jakarta.ws.rs.WebApplicationException;
-+import jakarta.ws.rs.core.MediaType;
-+import jakarta.ws.rs.core.Response;
 +import org.traccar.api.BaseResource;
 +import org.traccar.database.MediaManager;
 +import org.traccar.media.AlarmClipConverter;
@@ -128,6 +119,15 @@ index 0000000..a0d55a6
 +import org.traccar.storage.query.Condition;
 +import org.traccar.storage.query.Request;
 +
++import jakarta.inject.Inject;
++import jakarta.ws.rs.GET;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.PathParam;
++import jakarta.ws.rs.Produces;
++import jakarta.ws.rs.QueryParam;
++import jakarta.ws.rs.WebApplicationException;
++import jakarta.ws.rs.core.MediaType;
++import jakarta.ws.rs.core.Response;
 +import java.io.File;
 +import java.io.IOException;
 +import java.nio.file.Files;
@@ -260,7 +260,7 @@ index 0000000..a0d55a6
 +
 +}
 diff --git a/src/main/java/org/traccar/api/resource/DeviceResource.java b/src/main/java/org/traccar/api/resource/DeviceResource.java
-index 8aedc0b..00d6ad1 100644
+index 8aedc0b..8e62fdc 100644
 --- a/src/main/java/org/traccar/api/resource/DeviceResource.java
 +++ b/src/main/java/org/traccar/api/resource/DeviceResource.java
 @@ -16,8 +16,11 @@
@@ -297,7 +297,7 @@ index 8aedc0b..00d6ad1 100644
 +        return super.add(entity);
 +    }
 +
-+    private static final java.util.List<String> CLIENT_ATTRIBUTES =
++    private static final List<String> CLIENT_ATTRIBUTES =
 +            java.util.List.of("deviceImage", "plate", "speedLimit", "speedLimitMode");
 +
 +    @Override
@@ -355,7 +355,7 @@ index 8aedc0b..00d6ad1 100644
                  new Columns.All(), new Condition.LatestPositions(entity.getDeviceId())));
 diff --git a/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
 new file mode 100644
-index 0000000..8d5fb56
+index 0000000..89b895c
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
 @@ -0,0 +1,89 @@
@@ -374,6 +374,9 @@ index 0000000..8d5fb56
 + */
 +package org.traccar.api.resource;
 +
++import org.traccar.api.BaseResource;
++import org.traccar.notification.CustomTemplateStore;
++
 +import jakarta.inject.Inject;
 +import jakarta.ws.rs.Consumes;
 +import jakarta.ws.rs.DELETE;
@@ -385,9 +388,6 @@ index 0000000..8d5fb56
 +import jakarta.ws.rs.WebApplicationException;
 +import jakarta.ws.rs.core.MediaType;
 +import jakarta.ws.rs.core.Response;
-+import org.traccar.api.BaseResource;
-+import org.traccar.notification.CustomTemplateStore;
-+
 +import java.io.IOException;
 +import java.util.Map;
 +
@@ -450,7 +450,7 @@ index 0000000..8d5fb56
 +}
 diff --git a/src/main/java/org/traccar/api/resource/RecordingResource.java b/src/main/java/org/traccar/api/resource/RecordingResource.java
 new file mode 100644
-index 0000000..b964756
+index 0000000..6b1dfde
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/RecordingResource.java
 @@ -0,0 +1,141 @@
@@ -471,6 +471,14 @@ index 0000000..b964756
 + */
 +package org.traccar.api.resource;
 +
++import org.traccar.api.BaseResource;
++import org.traccar.database.CommandsManager;
++import org.traccar.media.Recording;
++import org.traccar.media.RecordingManager;
++import org.traccar.model.Command;
++import org.traccar.model.Device;
++import org.traccar.storage.StorageException;
++
 +import jakarta.inject.Inject;
 +import jakarta.ws.rs.DELETE;
 +import jakarta.ws.rs.GET;
@@ -481,14 +489,6 @@ index 0000000..b964756
 +import jakarta.ws.rs.WebApplicationException;
 +import jakarta.ws.rs.core.MediaType;
 +import jakarta.ws.rs.core.Response;
-+import org.traccar.api.BaseResource;
-+import org.traccar.database.CommandsManager;
-+import org.traccar.media.Recording;
-+import org.traccar.media.RecordingManager;
-+import org.traccar.model.Command;
-+import org.traccar.model.Device;
-+import org.traccar.storage.StorageException;
-+
 +import java.time.Duration;
 +import java.util.Collection;
 +import java.util.Date;
@@ -856,17 +856,17 @@ index 6aaa944..3818e8f 100644
       * Public URL for the web app. Used for notifications, report links, and OpenID Connect.
       * Its path also sets the HTML base path when hosted behind a reverse proxy.
 diff --git a/src/main/java/org/traccar/config/ProtocolConfig.java b/src/main/java/org/traccar/config/ProtocolConfig.java
-index c4b8e7a..6d6b29d 100644
+index c4b8e7a..c9781e0 100644
 --- a/src/main/java/org/traccar/config/ProtocolConfig.java
 +++ b/src/main/java/org/traccar/config/ProtocolConfig.java
-@@ -123,6 +123,7 @@ import org.traccar.protocol.ItsProtocol;
- import org.traccar.protocol.Ivt401Protocol;
- import org.traccar.protocol.JidoProtocol;
- import org.traccar.protocol.JimiPhotoProtocol;
-+import org.traccar.protocol.Jt808AttachmentProtocol;
- import org.traccar.protocol.JmakProtocol;
+@@ -127,6 +127,7 @@ import org.traccar.protocol.JmakProtocol;
  import org.traccar.protocol.JpKorjarProtocol;
  import org.traccar.protocol.Jt1078Protocol;
+ import org.traccar.protocol.Jt600Protocol;
++import org.traccar.protocol.Jt808AttachmentProtocol;
+ import org.traccar.protocol.Jt808Protocol;
+ import org.traccar.protocol.KenjiProtocol;
+ import org.traccar.protocol.KhdProtocol;
 @@ -571,6 +572,7 @@ public final class ProtocolConfig {
          put(R16hProtocol.class, 5266);
          put(JimiPhotoProtocol.class, 5267);
@@ -1150,10 +1150,10 @@ index 0000000..decdc82
 +}
 diff --git a/src/main/java/org/traccar/media/RecordingManager.java b/src/main/java/org/traccar/media/RecordingManager.java
 new file mode 100644
-index 0000000..67eef0d
+index 0000000..b68a467
 --- /dev/null
 +++ b/src/main/java/org/traccar/media/RecordingManager.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,57 @@
 +/*
 + * Copyright 2026 Anton Tananaev (anton@traccar.org)
 + *
@@ -1173,7 +1173,6 @@ index 0000000..67eef0d
 +
 +import jakarta.inject.Inject;
 +import jakarta.inject.Singleton;
-+
 +import java.util.List;
 +import java.util.Map;
 +import java.util.concurrent.CompletableFuture;
@@ -1293,20 +1292,21 @@ index 0000000..db4833d
 +
 +}
 diff --git a/src/main/java/org/traccar/media/VideoStreamManager.java b/src/main/java/org/traccar/media/VideoStreamManager.java
-index efa9f5a..cd8842c 100644
+index efa9f5a..ef5b9ef 100644
 --- a/src/main/java/org/traccar/media/VideoStreamManager.java
 +++ b/src/main/java/org/traccar/media/VideoStreamManager.java
-@@ -19,20 +19,73 @@ import io.netty.buffer.ByteBuf;
- import io.netty.buffer.Unpooled;
+@@ -17,22 +17,74 @@ package org.traccar.media;
  
- import jakarta.inject.Inject;
-+import jakarta.inject.Provider;
- import jakarta.inject.Singleton;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.Unpooled;
 +import org.slf4j.Logger;
 +import org.slf4j.LoggerFactory;
 +import org.traccar.database.CommandsManager;
 +import org.traccar.model.Command;
-+
+ 
+ import jakarta.inject.Inject;
++import jakarta.inject.Provider;
+ import jakarta.inject.Singleton;
  import java.util.LinkedHashMap;
  import java.util.Map;
  import java.util.concurrent.ConcurrentHashMap;
@@ -1371,7 +1371,7 @@ index efa9f5a..cd8842c 100644
  
      public void handleFrame(
              long deviceId, int channel, ByteBuf nalData, long timestamp, boolean isKeyFrame, int payloadType) {
-@@ -41,6 +94,7 @@ public class VideoStreamManager {
+@@ -41,6 +93,7 @@ public class VideoStreamManager {
      }
  
      public String getPlaylist(long deviceId, int channel) {
@@ -1379,7 +1379,7 @@ index efa9f5a..cd8842c 100644
          DeviceStream stream = streams.get(deviceId + "_" + channel);
          return stream != null ? stream.getPlaylist() : DeviceStream.EMPTY_PLAYLIST;
      }
-@@ -53,6 +107,7 @@ public class VideoStreamManager {
+@@ -53,6 +106,7 @@ public class VideoStreamManager {
      }
  
      public ByteBuf getSegment(long deviceId, int channel, int index) {
@@ -1438,7 +1438,7 @@ index 738802a..19f32f6 100644
  
 diff --git a/src/main/java/org/traccar/notification/CustomTemplateStore.java b/src/main/java/org/traccar/notification/CustomTemplateStore.java
 new file mode 100644
-index 0000000..845256c
+index 0000000..7a45aa3
 --- /dev/null
 +++ b/src/main/java/org/traccar/notification/CustomTemplateStore.java
 @@ -0,0 +1,111 @@
@@ -1459,11 +1459,11 @@ index 0000000..845256c
 +
 +import com.fasterxml.jackson.core.type.TypeReference;
 +import com.fasterxml.jackson.databind.ObjectMapper;
-+import jakarta.inject.Inject;
-+import jakarta.inject.Singleton;
 +import org.traccar.config.Config;
 +import org.traccar.config.Keys;
 +
++import jakarta.inject.Inject;
++import jakarta.inject.Singleton;
 +import java.io.IOException;
 +import java.nio.file.DirectoryStream;
 +import java.nio.file.Files;
@@ -1554,20 +1554,21 @@ index 0000000..845256c
 +
 +}
 diff --git a/src/main/java/org/traccar/notification/NotificationFormatter.java b/src/main/java/org/traccar/notification/NotificationFormatter.java
-index 71ae26d..b91a452 100644
+index 71ae26d..674f0b7 100644
 --- a/src/main/java/org/traccar/notification/NotificationFormatter.java
 +++ b/src/main/java/org/traccar/notification/NotificationFormatter.java
-@@ -32,6 +32,9 @@ import org.traccar.session.cache.CacheManager;
+@@ -32,6 +32,10 @@ import org.traccar.session.cache.CacheManager;
  
  import jakarta.inject.Inject;
  import jakarta.inject.Singleton;
 +import java.time.format.DateTimeFormatter;
++import java.util.HashMap;
 +import java.util.Map;
 +import java.util.TimeZone;
  
  @Singleton
  public class NotificationFormatter {
-@@ -39,13 +42,97 @@ public class NotificationFormatter {
+@@ -39,13 +43,97 @@ public class NotificationFormatter {
      private final LocaleManager localeManager;
      private final CacheManager cacheManager;
      private final TextTemplateFormatter textTemplateFormatter;
@@ -1651,7 +1652,7 @@ index 71ae26d..b91a452 100644
 +                "event", eventText,
 +                "link", link);
 +
-+        Map<String, String> html = new java.util.HashMap<>();
++        Map<String, String> html = new HashMap<>();
 +        plain.forEach((key, value) -> html.put(key, escapeHtml(value)));
 +        html.put("link", "<a href=\"" + escapeHtml(link) + "\">" + escapeHtml(link) + "</a>");
 +
@@ -1666,7 +1667,7 @@ index 71ae26d..b91a452 100644
      }
  
      public NotificationMessage formatMessage(
-@@ -81,6 +168,12 @@ public class NotificationFormatter {
+@@ -81,6 +169,12 @@ public class NotificationFormatter {
          }
  
          boolean priority = notification != null && notification.getBoolean("priority");
@@ -2318,10 +2319,10 @@ index 4f375d9..a400d12 100644
              @Override
              protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
 diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
-index d739c04..d2cc44e 100644
+index d739c04..6f4623e 100644
 --- a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 +++ b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
-@@ -17,8 +17,11 @@ package org.traccar.protocol;
+@@ -17,8 +17,10 @@ package org.traccar.protocol;
  
  import io.netty.buffer.ByteBuf;
  import io.netty.buffer.ByteBufUtil;
@@ -2329,11 +2330,10 @@ index d739c04..d2cc44e 100644
  import io.netty.buffer.Unpooled;
  import io.netty.channel.Channel;
 +import io.netty.channel.ChannelHandlerContext;
-+import jakarta.inject.Inject;
  import org.traccar.BaseProtocol;
  import org.traccar.BaseProtocolDecoder;
  import org.traccar.NetworkMessage;
-@@ -33,6 +36,8 @@ import org.traccar.helper.DataConverter;
+@@ -33,12 +35,15 @@ import org.traccar.helper.DataConverter;
  import org.traccar.helper.DateBuilder;
  import org.traccar.helper.StringUtil;
  import org.traccar.helper.UnitsConverter;
@@ -2342,6 +2342,13 @@ index d739c04..d2cc44e 100644
  import org.traccar.model.CellTower;
  import org.traccar.model.Network;
  import org.traccar.model.Position;
+ import org.traccar.model.WifiAccessPoint;
+ import org.traccar.session.DeviceSession;
+ 
++import jakarta.inject.Inject;
+ import java.net.SocketAddress;
+ import java.net.URI;
+ import java.nio.charset.StandardCharsets;
 @@ -63,6 +68,7 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
  
      public static final int MSG_TERMINAL_GENERAL_RESPONSE = 0x0001;

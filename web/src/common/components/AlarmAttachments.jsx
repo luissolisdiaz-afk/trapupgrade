@@ -93,10 +93,9 @@ const AlarmAttachments = ({ deviceId, label, inline }) => {
     let attempts = 0;
     const load = async () => {
       try {
-        const response = await fetchOrThrow(
-          `api/alarmfiles?deviceId=${deviceId}&label=${label}`,
-          { signal: controller.signal },
-        );
+        const response = await fetchOrThrow(`api/alarmfiles?deviceId=${deviceId}&label=${label}`, {
+          signal: controller.signal,
+        });
         const list = await response.json();
         setFiles(list);
         // the device uploads the files after reporting the alarm, so keep looking for a while

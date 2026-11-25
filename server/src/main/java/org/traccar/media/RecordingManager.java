@@ -17,7 +17,6 @@ package org.traccar.media;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

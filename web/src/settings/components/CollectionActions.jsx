@@ -60,7 +60,11 @@ const CollectionActions = ({
     <>
       {phone ? (
         <>
-          <IconButton size="small" aria-label={t('sharedMore')} onClick={(event) => setMenuAnchorEl(event.currentTarget)}>
+          <IconButton
+            size="small"
+            aria-label={t('sharedMore')}
+            onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+          >
             <MoreVertIcon fontSize="small" />
           </IconButton>
           <Menu open={!!menuAnchorEl} anchorEl={menuAnchorEl} onClose={() => setMenuAnchorEl(null)}>

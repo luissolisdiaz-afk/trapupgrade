@@ -27,7 +27,12 @@ import { messagesActions } from '../store';
 import { formatTime } from '../common/util/formatter';
 
 const useStyles = makeStyles()((theme) => ({
-  container: { padding: theme.spacing(2), display: 'flex', flexDirection: 'column', gap: theme.spacing(2) },
+  container: {
+    padding: theme.spacing(2),
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(2),
+  },
   add: { display: 'flex', gap: theme.spacing(1), padding: theme.spacing(2) },
 }));
 
@@ -56,8 +61,12 @@ const UserDevicesPage = () => {
   useAsyncTask(
     async ({ signal }) => {
       const [a, l, u] = await Promise.all([
-        fetchOrThrow('api/devices?all=true&excludeAttributes=true', { signal }).then((r) => r.json()),
-        fetchOrThrow(`api/devices?userId=${id}&excludeAttributes=true`, { signal }).then((r) => r.json()),
+        fetchOrThrow('api/devices?all=true&excludeAttributes=true', { signal }).then((r) =>
+          r.json(),
+        ),
+        fetchOrThrow(`api/devices?userId=${id}&excludeAttributes=true`, { signal }).then((r) =>
+          r.json(),
+        ),
         fetchOrThrow(`api/users/${id}`, { signal }).then((r) => r.json()),
       ]);
       setAll(a);
@@ -107,7 +116,10 @@ const UserDevicesPage = () => {
   const options = all.filter((d) => !linkedIds.includes(d.id));
 
   return (
-    <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'settingsUser', 'deviceTitle']}>
+    <PageLayout
+      menu={<SettingsMenu />}
+      breadcrumbs={['settingsTitle', 'settingsUser', 'deviceTitle']}
+    >
       <Container maxWidth="md" className={classes.container}>
         <Typography variant="h6">{`${user?.name || ''} · ${t('deviceTitle')} (${linked.length})`}</Typography>
         <Paper className={classes.add}>
@@ -144,12 +156,22 @@ const UserDevicesPage = () => {
                   <TableCell>{d.name}</TableCell>
                   <TableCell>{d.uniqueId}</TableCell>
                   <TableCell>{d.model}</TableCell>
-                  <TableCell>{d.expirationTime ? formatTime(d.expirationTime, 'date') : ''}</TableCell>
+                  <TableCell>
+                    {d.expirationTime ? formatTime(d.expirationTime, 'date') : ''}
+                  </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" aria-label={t('sharedEdit')} onClick={() => navigate(`/settings/device/${d.id}`)}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('sharedEdit')}
+                      onClick={() => navigate(`/settings/device/${d.id}`)}
+                    >
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" aria-label={t('sharedRemove')} onClick={() => remove(d.id)}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('sharedRemove')}
+                      onClick={() => remove(d.id)}
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>

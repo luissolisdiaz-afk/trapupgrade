@@ -38,8 +38,7 @@ const SettingsMenu = () => {
 
   const features = useFeatures();
 
-  const inAlerts =
-    location.pathname.startsWith('/settings/notification');
+  const inAlerts = location.pathname.startsWith('/settings/notification');
   const [alertsOpen, setAlertsOpen] = useState(inAlerts);
   useEffect(() => {
     if (inAlerts) setAlertsOpen(true);
@@ -102,11 +101,17 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith('/settings/calendar')}
               />
             )}
-            <ListItemButton onClick={() => setAlertsOpen((open) => !open)} selected={inAlerts && !alertsOpen}>
+            <ListItemButton
+              onClick={() => setAlertsOpen((open) => !open)}
+              selected={inAlerts && !alertsOpen}
+            >
               <ListItemIcon>
                 <NotificationsIcon />
               </ListItemIcon>
-              <ListItemText primary={t('alertsManagement')} slotProps={{ primary: { fontWeight: 700 } }} />
+              <ListItemText
+                primary={t('alertsManagement')}
+                slotProps={{ primary: { fontWeight: 700 } }}
+              />
               {alertsOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             <Collapse in={alertsOpen} timeout="auto" unmountOnExit>

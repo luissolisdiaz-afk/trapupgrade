@@ -27,7 +27,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import GroupsIcon from '@mui/icons-material/Groups';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SpeedIcon from '@mui/icons-material/Speed';
@@ -45,7 +44,8 @@ import MainSidebar from '../main/MainSidebar';
 const useStyles = makeStyles()((theme) => ({
   page: {
     minHeight: '100%',
-    background: theme.palette.mode === 'dark' ? theme.palette.background.default : brand.pageBackground,
+    background:
+      theme.palette.mode === 'dark' ? theme.palette.background.default : brand.pageBackground,
   },
   container: {
     padding: theme.spacing(2),
@@ -167,8 +167,12 @@ const ReportBuilderPage = ({ readOnly = false }) => {
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
-  const [widgets, setWidgets] = useState(() => (readOnly ? defaultWidgets : read('reportBuilderWidgets', defaultWidgets)));
-  const [templates, setTemplates] = useState(() => (readOnly ? {} : read('reportBuilderTemplates', {})));
+  const [widgets, setWidgets] = useState(() =>
+    readOnly ? defaultWidgets : read('reportBuilderWidgets', defaultWidgets),
+  );
+  const [templates, setTemplates] = useState(() =>
+    readOnly ? {} : read('reportBuilderTemplates', {}),
+  );
   const [filter, setFilter] = useState({
     from: dayjs().subtract(7, 'day').startOf('day').format('YYYY-MM-DDTHH:mm'),
     to: dayjs().endOf('day').format('YYYY-MM-DDTHH:mm'),
@@ -190,12 +194,15 @@ const ReportBuilderPage = ({ readOnly = false }) => {
 
   useEffect(() => {
     load(filter);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const reveal = (id) => {
     setEditing(true);
     setTimeout(
-      () => document.getElementById(`widget-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      () =>
+        document
+          .getElementById(`widget-${id}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       150,
     );
   };
@@ -273,7 +280,10 @@ const ReportBuilderPage = ({ readOnly = false }) => {
 
   const addKpi = (source, metric) => {
     const id = `k${Date.now()}`;
-    setWidgets((list) => [...list, { id, type: 'kpi', title: '', source, metric, groupBy: 'none', span: 1 }]);
+    setWidgets((list) => [
+      ...list,
+      { id, type: 'kpi', title: '', source, metric, groupBy: 'none', span: 1 },
+    ]);
     reveal(id);
     setKpiAnchor(null);
   };
@@ -291,12 +301,20 @@ const ReportBuilderPage = ({ readOnly = false }) => {
   const controls = (widget, light) => (
     <>
       <Tooltip title={t('builderMoveBefore')}>
-        <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => moveWidget(widget.id, -1)}>
+        <IconButton
+          size="small"
+          sx={{ color: light ? '#fff' : 'inherit' }}
+          onClick={() => moveWidget(widget.id, -1)}
+        >
           <ChevronLeftIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       <Tooltip title={t('builderMoveAfter')}>
-        <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => moveWidget(widget.id, 1)}>
+        <IconButton
+          size="small"
+          sx={{ color: light ? '#fff' : 'inherit' }}
+          onClick={() => moveWidget(widget.id, 1)}
+        >
           <ChevronRightIcon fontSize="small" />
         </IconButton>
       </Tooltip>
@@ -309,7 +327,11 @@ const ReportBuilderPage = ({ readOnly = false }) => {
           {`↔ ${widget.span}`}
         </Button>
       </Tooltip>
-      <IconButton size="small" sx={{ color: light ? '#fff' : 'inherit' }} onClick={() => setDialog(widget)}>
+      <IconButton
+        size="small"
+        sx={{ color: light ? '#fff' : 'inherit' }}
+        onClick={() => setDialog(widget)}
+      >
         <EditIcon fontSize="small" />
       </IconButton>
       <IconButton
@@ -418,7 +440,11 @@ const ReportBuilderPage = ({ readOnly = false }) => {
                 >
                   {t('builderAddKpi')}
                 </Button>
-                <Menu anchorEl={kpiAnchor} open={Boolean(kpiAnchor)} onClose={() => setKpiAnchor(null)}>
+                <Menu
+                  anchorEl={kpiAnchor}
+                  open={Boolean(kpiAnchor)}
+                  onClose={() => setKpiAnchor(null)}
+                >
                   {Object.entries(SOURCES).flatMap(([source, def]) =>
                     Object.entries(def.metrics).map(([metric, m]) => (
                       <MenuItem key={`${source}.${metric}`} onClick={() => addKpi(source, metric)}>
@@ -428,44 +454,89 @@ const ReportBuilderPage = ({ readOnly = false }) => {
                     )),
                   )}
                 </Menu>
-                <Button className={classes.linkButton} startIcon={<AddIcon />} onClick={() => setDialog(newWidget())}>
+                <Button
+                  className={classes.linkButton}
+                  startIcon={<AddIcon />}
+                  onClick={() => setDialog(newWidget())}
+                >
                   {t('builderAddWidget')}
                 </Button>
               </>
             )}
             {!readOnly && (
               <>
-            <Button
-              className={classes.linkButton}
-              endIcon={<KeyboardArrowDownIcon />}
-              onClick={(e) => setTemplateAnchor(e.currentTarget)}
-            >
-              {t('builderTemplates')}
-            </Button>
-            <Button
-              variant="contained"
-              className={classes.doneButton}
-              sx={{ background: editing ? '#1b7f3a' : brand.navyHeader }}
-              startIcon={editing ? <CheckIcon /> : <EditIcon />}
-              onClick={() => setEditing(!editing)}
-            >
-              {editing ? t('builderDone') : t('builderEdit')}
-            </Button>
+                <Button
+                  className={classes.linkButton}
+                  endIcon={<KeyboardArrowDownIcon />}
+                  onClick={(e) => setTemplateAnchor(e.currentTarget)}
+                >
+                  {t('builderTemplates')}
+                </Button>
+                <Button
+                  variant="contained"
+                  className={classes.doneButton}
+                  sx={{ background: editing ? '#1b7f3a' : brand.navyHeader }}
+                  startIcon={editing ? <CheckIcon /> : <EditIcon />}
+                  onClick={() => setEditing(!editing)}
+                >
+                  {editing ? t('builderDone') : t('builderEdit')}
+                </Button>
               </>
             )}
           </div>
-          <Menu anchorEl={templateAnchor} open={Boolean(templateAnchor)} onClose={() => setTemplateAnchor(null)}>
-            <MenuItem onClick={() => { setTemplateAnchor(null); saveTemplate(); }}>{t('builderTemplateSave')}</MenuItem>
-            <MenuItem onClick={() => { setTemplateAnchor(null); exportTemplate(); }}>{t('builderExport')}</MenuItem>
-            <MenuItem onClick={() => { setTemplateAnchor(null); fileRef.current.click(); }}>{t('builderImport')}</MenuItem>
+          <Menu
+            anchorEl={templateAnchor}
+            open={Boolean(templateAnchor)}
+            onClose={() => setTemplateAnchor(null)}
+          >
+            <MenuItem
+              onClick={() => {
+                setTemplateAnchor(null);
+                saveTemplate();
+              }}
+            >
+              {t('builderTemplateSave')}
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setTemplateAnchor(null);
+                exportTemplate();
+              }}
+            >
+              {t('builderExport')}
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setTemplateAnchor(null);
+                fileRef.current.click();
+              }}
+            >
+              {t('builderImport')}
+            </MenuItem>
             {Object.keys(templates).map((name) => (
-              <MenuItem key={name} onClick={() => { setTemplateAnchor(null); setWidgets(templates[name]); }}>
+              <MenuItem
+                key={name}
+                onClick={() => {
+                  setTemplateAnchor(null);
+                  setWidgets(templates[name]);
+                }}
+              >
                 {name}
               </MenuItem>
             ))}
           </Menu>
-          <input ref={fileRef} type="file" accept=".tpl,application/json" hidden onChange={importTemplate} />
-          {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".tpl,application/json"
+            hidden
+            onChange={importTemplate}
+          />
+          {error && (
+            <Alert severity="error" onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
           {info.truncated && <Alert severity="info">{t('builderTruncated')}</Alert>}
           {editing && <Alert severity="info">{t('builderEditHint')}</Alert>}
           {!widgets.length && <Typography color="textSecondary">{t('builderEmpty')}</Typography>}
@@ -490,7 +561,10 @@ const ReportBuilderPage = ({ readOnly = false }) => {
                   <>
                     {editing && (
                       <div className={classes.kpiControls}>
-                        <DragIndicatorIcon fontSize="small" sx={{ cursor: 'grab', color: brand.muted }} />
+                        <DragIndicatorIcon
+                          fontSize="small"
+                          sx={{ cursor: 'grab', color: brand.muted }}
+                        />
                         {controls(widget, false)}
                       </div>
                     )}
@@ -521,7 +595,13 @@ const ReportBuilderPage = ({ readOnly = false }) => {
         </div>
       </div>
       {!readOnly && dialog && (
-        <WidgetDialog key={dialog.id} open widget={dialog} onClose={() => setDialog(null)} onSave={saveWidget} />
+        <WidgetDialog
+          key={dialog.id}
+          open
+          widget={dialog}
+          onClose={() => setDialog(null)}
+          onSave={saveWidget}
+        />
       )}
     </>
   );

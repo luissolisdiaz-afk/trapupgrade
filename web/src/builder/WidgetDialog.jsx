@@ -72,7 +72,9 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
           <CloseIcon />
         </IconButton>
       </Box>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.75, pt: '12px !important' }}>
+      <DialogContent
+        sx={{ display: 'flex', flexDirection: 'column', gap: 1.75, pt: '12px !important' }}
+      >
         <TextField
           sx={sx}
           label={t('sharedName')}
@@ -89,7 +91,9 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
           slotProps={field(BarChartIcon)}
         >
           {TYPES.map((it) => (
-            <MenuItem key={it} value={it}>{t(`builder_${it}`)}</MenuItem>
+            <MenuItem key={it} value={it}>
+              {t(`builder_${it}`)}
+            </MenuItem>
           ))}
         </TextField>
         <TextField
@@ -101,7 +105,9 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
           slotProps={field(StorageIcon)}
         >
           {Object.keys(SOURCES).map((it) => (
-            <MenuItem key={it} value={it}>{t(`builderSource_${it}`)}</MenuItem>
+            <MenuItem key={it} value={it}>
+              {t(`builderSource_${it}`)}
+            </MenuItem>
           ))}
         </TextField>
         <TextField
@@ -113,7 +119,9 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
           slotProps={field(SpeedIcon)}
         >
           {Object.entries(source.metrics).map(([key, m]) => (
-            <MenuItem key={key} value={key}>{t(m.label)}</MenuItem>
+            <MenuItem key={key} value={key}>
+              {t(m.label)}
+            </MenuItem>
           ))}
         </TextField>
         {draft.type !== 'kpi' && (
@@ -125,9 +133,13 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
             onChange={(e) => set({ groupBy: e.target.value })}
             slotProps={field(GroupsIcon)}
           >
-            {source.groupBys.filter((g) => g !== 'none').map((g) => (
-              <MenuItem key={g} value={g}>{t(`builderBy_${g}`)}</MenuItem>
-            ))}
+            {source.groupBys
+              .filter((g) => g !== 'none')
+              .map((g) => (
+                <MenuItem key={g} value={g}>
+                  {t(`builderBy_${g}`)}
+                </MenuItem>
+              ))}
           </TextField>
         )}
         <TextField
@@ -139,18 +151,28 @@ const WidgetDialog = ({ open, widget, onClose, onSave }) => {
           slotProps={field(ViewWeekIcon)}
         >
           {[1, 2, 3].map((n) => (
-            <MenuItem key={n} value={n}>{n}/3</MenuItem>
+            <MenuItem key={n} value={n}>
+              {n}/3
+            </MenuItem>
           ))}
         </TextField>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button sx={{ textTransform: 'none', fontWeight: 600, color: brand.blue }} onClick={onClose}>
+        <Button
+          sx={{ textTransform: 'none', fontWeight: 600, color: brand.blue }}
+          onClick={onClose}
+        >
           {t('sharedCancel')}
         </Button>
         <Button
           variant="contained"
           startIcon={<CheckIcon />}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2.5, background: blueGradient }}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 600,
+            borderRadius: 2.5,
+            background: blueGradient,
+          }}
           onClick={() => onSave(draft)}
         >
           {t('sharedSave')}
