@@ -35,6 +35,7 @@ import SelectField from '../common/components/SelectField';
 import PasswordField from '../common/components/PasswordField';
 import TotpQrCodeButton from '../common/components/TotpQrCodeButton';
 import SettingsMenu from './components/SettingsMenu';
+import PhoneChangeDialog from './components/PhoneChangeDialog';
 import useCommonUserAttributes from '../common/attributes/useCommonUserAttributes';
 import { useAdministrator, useRestriction, useManager } from '../common/util/permissions';
 import { useCatch } from '../reactHelper';
@@ -52,6 +53,7 @@ const UserPage = () => {
   const admin = useAdministrator();
   const manager = useManager();
   const fixedEmail = useRestriction('fixedEmail');
+  const [phoneDialog, setPhoneDialog] = useState(false);
 
   const currentUser = useSelector((state) => state.session.user);
   const registrationEnabled = useSelector((state) => state.session.server.registration);
@@ -200,6 +202,30 @@ const UserPage = () => {
                 value={item.phone || ''}
                 onChange={(e) => setItem({ ...item, phone: e.target.value })}
                 label={t('sharedPhone')}
+                slotProps={
+                  !admin && item.id === currentUser.id
+                    ? {
+                        input: {
+                          readOnly: true,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Button size="small" onClick={() => setPhoneDialog(true)}>
+                                {t('userPhoneChange')}
+                              </Button>
+                            </InputAdornment>
+                          ),
+                        },
+                      }
+                    : undefined
+                }
+              />
+              <PhoneChangeDialog
+                open={phoneDialog}
+                onClose={() => setPhoneDialog(false)}
+                onChanged={(user) => {
+                  setItem({ ...item, phone: user.phone });
+                  dispatch(sessionActions.updateUser(user));
+                }}
               />
               <FormControl>
                 <InputLabel>{t('mapDefault')}</InputLabel>

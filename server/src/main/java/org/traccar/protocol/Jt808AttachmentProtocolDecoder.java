@@ -54,6 +54,11 @@ public class Jt808AttachmentProtocolDecoder extends BaseProtocolDecoder {
     private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
     private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
 
+    // limits so that a device (or someone using its identifier) can not fill the server disk
+    static final long MAX_FILE_SIZE = 64L * 1024 * 1024;
+    static final int MAX_FILES_PER_ALARM = 32;
+    static final long MIN_FREE_SPACE = 1024L * 1024 * 1024;
+
     private String lastLabel;
 
     public Jt808AttachmentProtocolDecoder(Protocol protocol) {
@@ -216,6 +221,26 @@ public class Jt808AttachmentProtocolDecoder extends BaseProtocolDecoder {
         }
     }
 
+    static boolean isWriteAllowed(File file, long offset, long length) {
+        if (offset + length > MAX_FILE_SIZE) {
+            LOGGER.warn("Alarm attachment too large: {}", file.getName());
+            return false;
+        }
+        File directory = file.getParentFile();
+        if (!file.exists()) {
+            String[] existing = directory.list();
+            if (existing != null && existing.length >= MAX_FILES_PER_ALARM) {
+                LOGGER.warn("Too many alarm attachments in {}", directory.getName());
+                return false;
+            }
+        }
+        if (directory.getUsableSpace() < MIN_FREE_SPACE) {
+            LOGGER.warn("Not enough disk space for alarm attachments");
+            return false;
+        }
+        return true;
+    }
+
     private void decodeData(Channel channel, SocketAddress remoteAddress, ByteBuf buf) {
         buf.skipBytes(4); // magic
         String name = readName(buf, 50);
@@ -227,7 +252,7 @@ public class Jt808AttachmentProtocolDecoder extends BaseProtocolDecoder {
         }
         String label = extractLabel(name);
         File file = resolve(deviceSession, label != null ? label : lastLabel, name);
-        if (file == null) {
+        if (file == null || !isWriteAllowed(file, offset, length)) {
             return;
         }
         try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {

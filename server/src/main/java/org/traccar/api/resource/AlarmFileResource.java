@@ -41,6 +41,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Locale;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -54,6 +56,7 @@ public class AlarmFileResource extends BaseResource {
     private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
     private static final long MAX_CLIP_SIZE = 64L * 1024 * 1024;
+    private static final Semaphore CONVERSIONS = new Semaphore(2);
 
     public record AlarmFile(String name, String kind, long size) { }
 
@@ -126,14 +129,42 @@ public class AlarmFileResource extends BaseResource {
         return Response.ok(file, type).build();
     }
 
-    private AlarmClipConverter.Result convert(File file) {
+    /**
+     * Converts a clip once and keeps the result in a hidden .cache folder next to it (transport stream plus frame
+     * count), so playing a video does not read and convert the whole clip into memory on every request. At most
+     * two conversions run at the same time.
+     */
+    private AlarmClipConverter.Result convert(long deviceId, String label, String name) throws StorageException {
+        File file = resolve(deviceId, label, name);
+        File cache = new File(file.getParentFile(), ".cache");
+        File stream = new File(cache, name + ".ts");
+        File frames = new File(cache, name + ".frames");
         try {
             if (!file.isFile() || file.length() > MAX_CLIP_SIZE) {
                 throw new WebApplicationException(Response.Status.NOT_FOUND);
             }
-            return AlarmClipConverter.toTransportStream(Files.readAllBytes(file.toPath()));
-        } catch (IOException e) {
+            if (stream.isFile() && frames.isFile() && stream.lastModified() >= file.lastModified()) {
+                return new AlarmClipConverter.Result(Files.readAllBytes(stream.toPath()),
+                        Integer.parseInt(Files.readString(frames.toPath()).trim()));
+            }
+            if (!CONVERSIONS.tryAcquire(10, TimeUnit.SECONDS)) {
+                throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+            }
+            try {
+                AlarmClipConverter.Result result = AlarmClipConverter.toTransportStream(
+                        Files.readAllBytes(file.toPath()));
+                Files.createDirectories(stream.toPath().getParent());
+                Files.write(stream.toPath(), result.data());
+                Files.writeString(frames.toPath(), Integer.toString(result.frames()));
+                return result;
+            } finally {
+                CONVERSIONS.release();
+            }
+        } catch (IOException | NumberFormatException e) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
         }
     }
 
@@ -144,7 +175,7 @@ public class AlarmFileResource extends BaseResource {
             @PathParam("label") String label,
             @PathParam("name") String name) throws StorageException {
 
-        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
+        AlarmClipConverter.Result clip = convert(deviceId, label, name);
         double duration = clip.durationSeconds();
         String playlist = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n"
                 + "#EXT-X-TARGETDURATION:" + (int) Math.ceil(duration) + "\n#EXT-X-MEDIA-SEQUENCE:0\n"
@@ -159,7 +190,7 @@ public class AlarmFileResource extends BaseResource {
             @PathParam("label") String label,
             @PathParam("name") String name) throws StorageException {
 
-        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
+        AlarmClipConverter.Result clip = convert(deviceId, label, name);
         return Response.ok(clip.data(), "video/mp2t").build();
     }
 

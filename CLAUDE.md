@@ -29,6 +29,7 @@ Checkstyle prohíbe imports sin usar. Instalación necesita `schema/` y `templat
 - Mantenimientos simples por perfil (distancia, horas, fecha), errores del servidor en español, reconexión del socket, compartir enlace sin error 409.
 - Accesibilidad según Web Interface Guidelines de Vercel (nombres en botones de icono, teclado, `lang`).
 - Tarjeta de vehículo: resumen (velocidad, última señal, dirección) vinculado a "Información emergente"; patente visible.
+- Auditoría de seguridad (nov 2026) corregida: prueba de notificación sin texto propio y con límite, el cliente cambia su teléfono con código (WhatsApp al número nuevo, o correo si no hay WhatsApp; `/api/phone`), corte de motor rechazado en el servidor sobre `ui.lockMaxSpeed`, grabaciones con "limitar comandos", enlaces compartidos respetan `ui.disableCameras`, topes de disco/memoria en adjuntos de dashcam y en el 0x1205.
 - Revisión automática en GitHub Actions (`.github/workflows/revision.yml`): compila y prueba `server/` (checkstyle incluido), lint y build de `web/`, y comprueba que `server-patch.patch` coincide con `server/`.
 
 ## Pendiente / ideas
