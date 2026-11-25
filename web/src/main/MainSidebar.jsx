@@ -163,15 +163,15 @@ const MainSidebar = () => {
               !(item.key === 'dashboard' && !features.dashboardEnabled),
           )
           .map((item) => (
-          <ListItemButton
-            key={item.key}
-            selected={item.match(location.pathname)}
-            onClick={() => navigate(item.link)}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.title} />
-          </ListItemButton>
-        ))}
+            <ListItemButton
+              key={item.key}
+              selected={item.match(location.pathname)}
+              onClick={() => navigate(item.link)}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.title} />
+            </ListItemButton>
+          ))}
       </List>
       <div className={classes.status}>
         <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>

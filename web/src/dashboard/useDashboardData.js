@@ -70,7 +70,6 @@ export default (period) => {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, period]);
 
   return { data, loading, error, truncated: Object.keys(devices).length > MAX_DEVICES };

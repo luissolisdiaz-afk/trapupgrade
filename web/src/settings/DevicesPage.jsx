@@ -177,18 +177,18 @@ const DevicesPage = () => {
             </TableCell>
             <TableCell colSpan={administrator ? 9 : 6} align="right">
               {administrator && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={showAll}
-                    onChange={(e) => setShowAll(e.target.checked)}
-                    size="small"
-                  />
-                }
-                label={t('deviceShowAll')}
-                labelPlacement="start"
-                disabled={!manager}
-              />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showAll}
+                      onChange={(e) => setShowAll(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label={t('deviceShowAll')}
+                  labelPlacement="start"
+                  disabled={!manager}
+                />
               )}
             </TableCell>
           </TableRow>

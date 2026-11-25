@@ -60,7 +60,10 @@ const preview = (text, t, type) => {
     alarm: 'SOS',
     link: 'https://tu-servidor/event/123',
   };
-  return Object.entries(sample).reduce((acc, [key, value]) => acc.split(`{${key}}`).join(value), text);
+  return Object.entries(sample).reduce(
+    (acc, [key, value]) => acc.split(`{${key}}`).join(value),
+    text,
+  );
 };
 
 const TemplateEditor = ({ type, custom, onChanged }) => {
@@ -175,7 +178,10 @@ const NotificationTemplatesPage = () => {
   }, [version]);
 
   return (
-    <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'alertsManagement', 'alertsTemplates']}>
+    <PageLayout
+      menu={<SettingsMenu />}
+      breadcrumbs={['settingsTitle', 'alertsManagement', 'alertsTemplates']}
+    >
       <Container maxWidth="md" sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Alert severity="info">{t('tplHint')}</Alert>
         {TYPES.map((type) => (

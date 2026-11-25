@@ -26,7 +26,9 @@ const useStyles = makeStyles()((theme) => ({
     display: 'grid',
     gap: theme.spacing(2),
     gridTemplateColumns: 'repeat(var(--cols), minmax(0, 1fr))',
-    [theme.breakpoints.down('md')]: { gridTemplateColumns: 'repeat(min(var(--cols), 2), minmax(0, 1fr))' },
+    [theme.breakpoints.down('md')]: {
+      gridTemplateColumns: 'repeat(min(var(--cols), 2), minmax(0, 1fr))',
+    },
     [theme.breakpoints.down('sm')]: { gridTemplateColumns: '1fr' },
   },
   header: {
@@ -53,7 +55,7 @@ const CamerasDashboardPage = () => {
 
   useEffect(() => {
     loadEvents(ids, dayjs().subtract(24, 'hour'), dayjs());
-  }, [ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ids.join(',')]);
 
   const play = (id) => {
     setActive((a) => {
@@ -69,7 +71,7 @@ const CamerasDashboardPage = () => {
   useEffect(() => {
     const id = Number(searchParams.get('deviceId'));
     if (id && searchParams.get('play')) play(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <PageLayout menu={<CamerasMenu />} breadcrumbs={['cameraTitle', 'cameraPanel']}>
@@ -79,16 +81,21 @@ const CamerasDashboardPage = () => {
             {t('cameraTitle')} ({cameras.length})
           </Typography>
           {cameras.length > 0 && (
-          <ToggleButtonGroup size="small" exclusive value={cols} onChange={(_, v) => v && setCols(v)}>
-            {[1, 2, 3, 4].map((n) => (
-              <ToggleButton key={n} value={n}>{n}</ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={cols}
+              onChange={(_, v) => v && setCols(v)}
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <ToggleButton key={n} value={n}>
+                  {n}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
           )}
         </div>
-        {!cameras.length && (
-          <Typography color="textSecondary">{t('cameraEmptyHint')}</Typography>
-        )}
+        {!cameras.length && <Typography color="textSecondary">{t('cameraEmptyHint')}</Typography>}
         <div className={classes.grid} style={{ '--cols': cols }}>
           {cameras.map(({ device }) => (
             <CameraTile

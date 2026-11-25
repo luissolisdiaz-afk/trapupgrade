@@ -125,7 +125,11 @@ const UsersPage = () => {
                     editPath="/settings/user"
                     endpoint="users"
                     onReload={reload}
-                    customActions={manager ? [actionDevices, actionLogin, actionConnections] : [actionConnections]}
+                    customActions={
+                      manager
+                        ? [actionDevices, actionLogin, actionConnections]
+                        : [actionConnections]
+                    }
                   />
                 </TableCell>
               </TableRow>

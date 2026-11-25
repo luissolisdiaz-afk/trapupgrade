@@ -4,7 +4,12 @@ import { useCatch } from '../reactHelper';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
 // alarms raised by the camera AI (ADAS, driver monitoring and blind spot detection)
-export const ADAS_ALARMS = ['forwardCollision', 'laneDeparture', 'closeDistance', 'pedestrianCollision'];
+export const ADAS_ALARMS = [
+  'forwardCollision',
+  'laneDeparture',
+  'closeDistance',
+  'pedestrianCollision',
+];
 export const DMS_ALARMS = [
   'fatigueDriving',
   'phoneUse',

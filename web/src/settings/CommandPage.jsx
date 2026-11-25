@@ -33,12 +33,17 @@ const CommandPage = () => {
   const [devices, setDevices] = useState([]);
   const [selected, setSelected] = useState([]);
 
-  useAsyncTask(async ({ signal }) => {
-    if (!id) {
-      const response = await fetchOrThrow('api/devices?all=true&excludeAttributes=true', { signal });
-      setDevices(await response.json());
-    }
-  }, [id]);
+  useAsyncTask(
+    async ({ signal }) => {
+      if (!id) {
+        const response = await fetchOrThrow('api/devices?all=true&excludeAttributes=true', {
+          signal,
+        });
+        setDevices(await response.json());
+      }
+    },
+    [id],
+  );
 
   const auto = Boolean(item?.attributes?.autoDevice);
   const validate = () => item && item.type && item.description && !auto;
@@ -54,15 +59,15 @@ const CommandPage = () => {
     if (!selected.length) return;
     const users = new Set();
     for (const device of selected) {
-      // eslint-disable-next-line no-await-in-loop
       await fetchOrThrow('api/permissions', json({ deviceId: device.id, commandId: command.id }));
-      // eslint-disable-next-line no-await-in-loop
+
       const list = await (await fetchOrThrow(`api/users?deviceId=${device.id}`)).json();
       list.forEach((u) => users.add(u.id));
     }
     for (const userId of users) {
-      // eslint-disable-next-line no-await-in-loop
-      await fetchOrThrow('api/permissions', json({ userId, commandId: command.id })).catch(() => {});
+      await fetchOrThrow('api/permissions', json({ userId, commandId: command.id })).catch(
+        () => {},
+      );
     }
     dispatch(messagesActions.push({ message: t('sharedSaved'), severity: 'success' }));
   };
@@ -100,7 +105,12 @@ const CommandPage = () => {
             )}
             {!id && (
               <>
-                <TextField select value={profile} onChange={(e) => setProfile(e.target.value)} label={t('commandProfile')}>
+                <TextField
+                  select
+                  value={profile}
+                  onChange={(e) => setProfile(e.target.value)}
+                  label={t('commandProfile')}
+                >
                   <MenuItem value="particular">{t('clientParticular')}</MenuItem>
                   <MenuItem value="empresa">{t('clientCompany')}</MenuItem>
                   <MenuItem value="r12l">Seeworld R12L (texto)</MenuItem>
@@ -108,12 +118,18 @@ const CommandPage = () => {
                 {profile && (
                   <TextField
                     select
-                    value={COMMAND_CATALOG[profile].some((it) => it[0] === item.description) ? item.description : ''}
+                    value={
+                      COMMAND_CATALOG[profile].some((it) => it[0] === item.description)
+                        ? item.description
+                        : ''
+                    }
                     onChange={(e) => pickCatalog(e.target.value)}
                     label={t('commandCatalog')}
                   >
                     {COMMAND_CATALOG[profile].map(([label]) => (
-                      <MenuItem key={label} value={label}>{label}</MenuItem>
+                      <MenuItem key={label} value={label}>
+                        {label}
+                      </MenuItem>
                     ))}
                   </TextField>
                 )}
@@ -133,7 +149,9 @@ const CommandPage = () => {
                 onChange={(_, v) => setSelected(v)}
                 getOptionLabel={(d) => `${d.name} (${d.uniqueId})`}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
-                renderInput={(params) => <TextField {...params} label={t('commandAssignDevices')} />}
+                renderInput={(params) => (
+                  <TextField {...params} label={t('commandAssignDevices')} />
+                )}
               />
             )}
           </AccordionDetails>
