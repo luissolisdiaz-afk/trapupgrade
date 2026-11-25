@@ -98,6 +98,18 @@ public class NotificatorEvolution extends Notificator {
             return CompletableFuture.completedFuture(null);
         }
 
+        StringBuilder text = new StringBuilder(shortMessage.digest());
+        if (position != null && (position.getLatitude() != 0 || position.getLongitude() != 0)) {
+            text.append("\nhttps://maps.google.com/?q=")
+                    .append(String.format(Locale.US, "%.6f,%.6f", position.getLatitude(), position.getLongitude()));
+        }
+        return sendText(phone, text.toString());
+    }
+
+    /**
+     * Sends a plain text from the company WhatsApp number. Also used for the phone verification code.
+     */
+    public CompletableFuture<Void> sendText(String phone, String text) {
         Server server = cacheManager.getServer();
         if (!isConfigured(server)) {
             return CompletableFuture.failedFuture(
@@ -111,12 +123,7 @@ public class NotificatorEvolution extends Notificator {
 
         TextMessage message = new TextMessage();
         message.number = formatNumber(phone, countryCode);
-        StringBuilder text = new StringBuilder(shortMessage.digest());
-        if (position != null && (position.getLatitude() != 0 || position.getLongitude() != 0)) {
-            text.append("\nhttps://maps.google.com/?q=")
-                    .append(String.format(Locale.US, "%.6f,%.6f", position.getLatitude(), position.getLongitude()));
-        }
-        message.text = text.toString();
+        message.text = text;
 
         String url = baseUrl + "/message/sendText/" + URLEncoder.encode(instance, StandardCharsets.UTF_8)
                 .replace("+", "%20");

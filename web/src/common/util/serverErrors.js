@@ -42,4 +42,9 @@ export default [
   ['Too many test notifications', 'serverError38'],
   ['Only administrators can change the phone number', 'serverError39'],
   ['Too many custom templates', 'serverError40'],
+  ['Too many verification codes', 'serverError41'],
+  ['Invalid phone number', 'serverError42'],
+  ['Invalid or expired code', 'serverError43'],
+  ['Failed to send verification code', 'serverError44'],
+  ['Phone verification is not available', 'serverError44'],
 ];
