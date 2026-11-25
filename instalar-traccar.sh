@@ -46,3 +46,4 @@ WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload && sudo systemctl enable --now traccar
 echo "Listo: http://IP:8082  (logs: journalctl -u traccar -f)"
+echo "Para que los clientes recuperen su contrasena por correo: ./configurar-correo.sh"
