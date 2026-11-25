@@ -122,6 +122,10 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
     private int delimiter = 0x7e;
     private Integer protocolVersion;
 
+    // a resource list larger than this is dropped, so a device can not make the server keep unlimited memory
+    private static final int MAX_RECORDING_PACKETS = 256;
+    private static final int MAX_RECORDING_SIZE = 256 * 1024;
+
     private RecordingManager recordingManager;
     private CompositeByteBuf recordingBuffer;
 
@@ -141,6 +145,9 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
             total = buf.readUnsignedShort();
             sequence = buf.readUnsignedShort();
         }
+        if (total > MAX_RECORDING_PACKETS || sequence > total) {
+            return; // not a valid resource list, do not keep anything
+        }
         if (sequence == 1 && recordingBuffer != null) {
             recordingBuffer.release();
             recordingBuffer = null;
@@ -149,7 +156,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
             if (sequence != 1) {
                 return; // missed the first packet
             }
-            recordingBuffer = Unpooled.compositeBuffer();
+            recordingBuffer = Unpooled.compositeBuffer(MAX_RECORDING_PACKETS);
+        }
+        if (recordingBuffer.readableBytes() + bodyLength > MAX_RECORDING_SIZE) {
+            recordingBuffer.release();
+            recordingBuffer = null;
+            return;
         }
         recordingBuffer.addComponent(true, buf.readRetainedSlice(bodyLength));
         if (sequence >= total) {

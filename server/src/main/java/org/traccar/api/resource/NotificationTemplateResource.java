@@ -14,7 +14,10 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.BaseResource;
+import org.traccar.model.User;
+import org.traccar.model.UserRestrictions;
 import org.traccar.notification.CustomTemplateStore;
+import org.traccar.storage.StorageException;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -50,11 +53,28 @@ public class NotificationTemplateResource extends BaseResource {
         return store.getAll(getUserId());
     }
 
+    private static final int MAX_TEMPLATES = 60;
+
+    /**
+     * Shared link users and read only users can not write templates (each one is a file on the server).
+     */
+    private void checkWrite() throws StorageException {
+        User user = permissionsService.getUser(getUserId());
+        if (user.getTemporary()) {
+            throw new SecurityException("Temporary user");
+        }
+        permissionsService.checkRestriction(getUserId(), UserRestrictions::getReadonly);
+    }
+
     @PUT
     @Path("{name}")
-    public Response put(@PathParam("name") String name, Map<String, String> body) {
+    public Response put(@PathParam("name") String name, Map<String, String> body) throws StorageException {
         if (!CustomTemplateStore.isValidName(name)) {
             throw badRequest("Invalid name");
+        }
+        checkWrite();
+        if (store.get(getUserId(), name) == null && store.getAll(getUserId()).size() >= MAX_TEMPLATES) {
+            throw badRequest("Too many custom templates");
         }
         String subject = body != null ? body.get("subject") : null;
         String text = body != null ? body.get("body") : null;
@@ -74,10 +94,11 @@ public class NotificationTemplateResource extends BaseResource {
 
     @DELETE
     @Path("{name}")
-    public Response delete(@PathParam("name") String name) {
+    public Response delete(@PathParam("name") String name) throws StorageException {
         if (!CustomTemplateStore.isValidName(name)) {
             throw badRequest("Invalid name");
         }
+        checkWrite();
         try {
             store.delete(getUserId(), name);
         } catch (IOException e) {

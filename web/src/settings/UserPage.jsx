@@ -200,6 +200,10 @@ const UserPage = () => {
                 value={item.phone || ''}
                 onChange={(e) => setItem({ ...item, phone: e.target.value })}
                 label={t('sharedPhone')}
+                disabled={!admin && item.id === currentUser.id}
+                helperText={
+                  !admin && item.id === currentUser.id ? t('userPhoneAdminOnly') : undefined
+                }
               />
               <FormControl>
                 <InputLabel>{t('mapDefault')}</InputLabel>

@@ -126,6 +126,11 @@ public class UserResource extends BaseObjectResource<User> {
             }
         }
 
+        if (currentUser != null && !currentUser.getAdministrator() && currentUser.getBoolean("ui.disableCameras")) {
+            // a manager without cameras can not create users that have them
+            entity.set("ui.disableCameras", true);
+        }
+
         entity.setId(storage.addObject(entity, new Request(new Columns.Exclude("id"))));
         storage.updateObject(entity, new Request(
                 new Columns.Include("hashedPassword", "salt"),

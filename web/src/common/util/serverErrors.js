@@ -38,4 +38,8 @@ export default [
   ['Duplicate entry', 'serverError35'],
   ['Unique index or primary key violation', 'serverError35'],
   ['NULL not allowed for column "DESCRIPTION"', 'serverError36'],
+  ['Vehicle is moving too fast to stop the engine', 'serverError37'],
+  ['Too many test notifications', 'serverError38'],
+  ['Only administrators can change the phone number', 'serverError39'],
+  ['Too many custom templates', 'serverError40'],
 ];

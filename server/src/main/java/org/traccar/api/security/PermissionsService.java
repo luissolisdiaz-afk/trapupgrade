@@ -217,6 +217,19 @@ public class PermissionsService {
                 checkAdmin(userId);
             }
         }
+        // notifications (WhatsApp, SMS) go to this number from the company account, so users can not point their
+        // own account to someone else's phone; administrators and managers of the user can change it
+        if (!Objects.equals(normalizePhone(before.getPhone()), normalizePhone(after.getPhone()))) {
+            if (userId <= 0) {
+                throw new SecurityException("Only administrators can change the phone number");
+            } else if (userId == after.getId() && !getUser(userId).getAdministrator()) {
+                throw new SecurityException("Only administrators can change the phone number");
+            }
+        }
+    }
+
+    private static String normalizePhone(String phone) {
+        return phone == null || phone.isBlank() ? null : phone.trim();
     }
 
     public <T extends BaseModel> void checkPermission(

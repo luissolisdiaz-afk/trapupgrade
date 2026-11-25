@@ -21,6 +21,7 @@ import org.traccar.media.Recording;
 import org.traccar.media.RecordingManager;
 import org.traccar.model.Command;
 import org.traccar.model.Device;
+import org.traccar.model.UserRestrictions;
 import org.traccar.storage.StorageException;
 
 import jakarta.inject.Inject;
@@ -64,6 +65,9 @@ public class RecordingResource extends BaseResource {
             String type, long deviceId, int channel, Date from, Date to) throws StorageException {
         checkCamerasEnabled();
         permissionsService.checkPermission(Device.class, getUserId(), deviceId);
+        // these requests send commands to the device, so the same restriction as for other commands applies
+        // (shared links get it unless sharing commands is enabled)
+        permissionsService.checkRestriction(getUserId(), UserRestrictions::getLimitCommands);
         if (channel < 1 || channel > 255) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
                     .entity("Invalid channel").build());

@@ -46,7 +46,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -56,6 +58,32 @@ import java.util.stream.Collectors;
 public class NotificationResource extends ExtendedObjectResource<Notification> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationResource.class);
+
+    private static final int TEST_LIMIT = 10;
+    private static final long TEST_WINDOW = 60 * 60 * 1000L;
+
+    /**
+     * Test notifications per user in the current window: start time and count. Each test goes out through every
+     * channel (email, WhatsApp, SMS) from the company accounts, so non-administrators get a small hourly quota.
+     */
+    private static final Map<Long, long[]> TEST_USAGE = new ConcurrentHashMap<>();
+
+    private void checkTestLimit(User user) {
+        if (user.getAdministrator()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long[] usage = TEST_USAGE.compute(user.getId(), (id, value) -> {
+            if (value == null || now - value[0] > TEST_WINDOW) {
+                return new long[] {now, 1};
+            }
+            value[1]++;
+            return value;
+        });
+        if (usage[1] > TEST_LIMIT) {
+            throw new SecurityException("Too many test notifications");
+        }
+    }
 
     @Inject
     private NotificatorManager notificatorManager;
@@ -94,6 +122,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
     @Path("test")
     public Response testMessage() throws ExecutionException, InterruptedException, StorageException {
         User user = permissionsService.getUser(getUserId());
+        checkTestLimit(user);
         for (Typed method : notificatorManager.getAllNotificatorTypes()) {
             notificatorManager.getNotificator(method.type()).sendAsync(null, user, new Event("test", 0), null).get();
         }
@@ -105,6 +134,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
     public Response testMessage(@PathParam("notificator") String notificator)
             throws ExecutionException, InterruptedException, StorageException {
         User user = permissionsService.getUser(getUserId());
+        checkTestLimit(user);
         notificatorManager.getNotificator(notificator).sendAsync(null, user, new Event("test", 0), null).get();
         return Response.noContent().build();
     }
