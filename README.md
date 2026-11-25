@@ -10,5 +10,5 @@ Sin compilar ni probar con cámara real: ejecutar `./gradlew test` y `npm run li
 Las notificaciones de eventos pueden salir por WhatsApp desde el número de Roadsafe, usando una instancia propia de [Evolution API](https://doc.evolution-api.com) (v2).
 1. En Evolution, crea una instancia y conéctala escaneando el QR con el teléfono del número de eventos.
 2. En la web: Configuración → Servidor → "WhatsApp de la empresa (Evolution API)": dirección, nombre de la instancia, clave API y código de país (56 por defecto). Guardar. No hace falta reiniciar ni tocar `traccar.xml`.
-3. Cada usuario debe tener su teléfono en su cuenta. En cada notificación, elegir el canal "WhatsApp (empresa)" y probar con "Probar notificadores".
+3. Cada usuario debe tener su teléfono en su cuenta. En cada notificación, elegir el canal "WhatsApp" y probar con "Probar notificadores".
 El texto es el resumen corto de cada evento (o el texto personalizado del usuario) más un enlace a Google Maps. La clave nunca se muestra en la API (los administradores ven asteriscos).
