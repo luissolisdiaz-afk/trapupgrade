@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { TextField, IconButton, InputAdornment } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { useTranslation } from './LocalizationProvider';
 
 const PasswordField = ({ slotProps, ...others }) => {
+  const t = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -16,7 +18,7 @@ const PasswordField = ({ slotProps, ...others }) => {
           ...slotProps?.input,
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+              <IconButton aria-label={t('sharedShowPassword')} onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
                 {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
               </IconButton>
             </InputAdornment>

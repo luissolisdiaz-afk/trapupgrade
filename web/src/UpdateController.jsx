@@ -64,6 +64,7 @@ const UpdateController = () => {
           <IconButton
             size="small"
             color="inherit"
+            aria-label={t('settingsUpdateAvailable')}
             onClick={() => waitingWorker.messageSkipWaiting()}
           >
             <RefreshIcon fontSize="small" />

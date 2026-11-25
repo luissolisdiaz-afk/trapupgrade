@@ -17,6 +17,7 @@ import {
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAsyncTask } from '../reactHelper';
+import { useTranslation } from '../common/components/LocalizationProvider';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
@@ -37,6 +38,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const NetworkPage = () => {
+  const t = useTranslation();
   const { classes } = useStyles();
   const navigate = useNavigate();
 
@@ -71,7 +73,7 @@ const NetworkPage = () => {
     <div className={classes.root}>
       <AppBar position="sticky" color="inherit">
         <Toolbar>
-          <IconButton color="inherit" edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
+          <IconButton color="inherit" edge="start" sx={{ mr: 2 }} aria-label={t('sharedBack')} onClick={() => navigate(-1)}>
             <BackIcon />
           </IconButton>
           <Typography variant="h6">{deviceName}</Typography>

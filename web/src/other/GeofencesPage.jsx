@@ -191,7 +191,7 @@ const GeofencesPage = () => {
       <div className={classes.content}>
         <Paper square className={classes.drawer}>
           <Toolbar>
-            <IconButton edge="start" sx={{ mr: 2 }} onClick={() => navigate(-1)}>
+            <IconButton edge="start" sx={{ mr: 2 }} aria-label={t('sharedBack')} onClick={() => navigate(-1)}>
               <BackIcon />
             </IconButton>
             <Typography variant="h6" className={classes.title}>

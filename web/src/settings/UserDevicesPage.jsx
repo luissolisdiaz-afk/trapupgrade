@@ -146,10 +146,10 @@ const UserDevicesPage = () => {
                   <TableCell>{d.model}</TableCell>
                   <TableCell>{d.expirationTime ? formatTime(d.expirationTime, 'date') : ''}</TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => navigate(`/settings/device/${d.id}`)}>
+                    <IconButton size="small" aria-label={t('sharedEdit')} onClick={() => navigate(`/settings/device/${d.id}`)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => remove(d.id)}>
+                    <IconButton size="small" aria-label={t('sharedRemove')} onClick={() => remove(d.id)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
