@@ -18,6 +18,7 @@ import HelpIcon from '@mui/icons-material/Help';
 import PaymentIcon from '@mui/icons-material/Payment';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import CalculateIcon from '@mui/icons-material/Calculate';
+import PrivacyTipIcon from '@mui/icons-material/PrivacyTip';
 import { useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
@@ -165,6 +166,12 @@ const SettingsMenu = () => {
         {supportLink && (
           <MenuItem title={t('settingsSupport')} link={supportLink} icon={<HelpIcon />} />
         )}
+        <MenuItem
+          title={t('legalTitle')}
+          link="/settings/legal"
+          icon={<PrivacyTipIcon />}
+          selected={location.pathname === '/settings/legal'}
+        />
       </List>
       <Divider />
       <List>

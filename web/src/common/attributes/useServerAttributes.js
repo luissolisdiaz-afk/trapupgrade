@@ -45,6 +45,14 @@ export default (t) =>
         name: t('userPrivacy'),
         type: 'string',
       },
+      termsVersion: {
+        name: t('legalTermsVersion'),
+        type: 'string',
+      },
+      analyticsScript: {
+        name: t('legalAnalyticsScript'),
+        type: 'string',
+      },
       totpEnable: {
         name: t('settingsTotpEnable'),
         type: 'boolean',
