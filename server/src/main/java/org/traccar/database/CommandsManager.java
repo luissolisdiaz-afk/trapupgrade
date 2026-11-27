@@ -22,12 +22,14 @@ import org.traccar.broadcast.BroadcastInterface;
 import org.traccar.broadcast.BroadcastService;
 import org.traccar.command.CommandSender;
 import org.traccar.command.CommandSenderManager;
+import org.traccar.helper.UnitsConverter;
 import org.traccar.model.Command;
 import org.traccar.model.Device;
 import org.traccar.model.Event;
 import org.traccar.model.ObjectOperation;
 import org.traccar.model.Position;
 import org.traccar.model.QueuedCommand;
+import org.traccar.model.Server;
 import org.traccar.session.ConnectionManager;
 import org.traccar.session.DeviceSession;
 import org.traccar.session.cache.CacheManager;
@@ -75,6 +77,28 @@ public class CommandsManager implements BroadcastInterface {
         broadcastService.registerListener(this);
     }
 
+    /**
+     * Server attribute with the maximum speed (km/h) at which the engine can be stopped. 0 or empty disables the check.
+     */
+    public static final String LOCK_MAX_SPEED = "ui.lockMaxSpeed";
+
+    /**
+     * The web hides the engine stop button above ui.lockMaxSpeed, but the limit must also hold for direct API calls,
+     * old apps and saved or scheduled commands, because stopping a moving vehicle is dangerous.
+     */
+    private void checkEngineStopSpeed(Command command, Position position) {
+        boolean engineStop = Command.TYPE_ENGINE_STOP.equals(command.getType())
+                || "lock".equals(command.getString("quickActionKind"));
+        if (!engineStop || position == null) {
+            return;
+        }
+        Server server = cacheManager.getServer();
+        double maxSpeed = server != null ? server.getDouble(LOCK_MAX_SPEED) : 0;
+        if (maxSpeed > 0 && UnitsConverter.kphFromKnots(position.getSpeed()) > maxSpeed) {
+            throw new SecurityException("Vehicle is moving too fast to stop the engine");
+        }
+    }
+
     public QueuedCommand sendCommand(Command command) throws Exception {
         long deviceId = command.getDeviceId();
         Device device = storage.getObject(Device.class, new Request(
@@ -88,6 +112,7 @@ public class CommandsManager implements BroadcastInterface {
                 new Condition.And(
                         new Condition.Equals("deviceId", deviceId),
                         new Condition.Equals("id", device.getPositionId()))));
+        checkEngineStopSpeed(command, position);
         BaseProtocol protocol = position != null ? serverManager.getProtocol(position.getProtocol()) : null;
 
         if (command.getTextChannel()) {

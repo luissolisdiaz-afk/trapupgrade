@@ -46,6 +46,8 @@ import java.util.Locale;
 @Consumes(MediaType.APPLICATION_JSON)
 public class ShareResource extends BaseResource {
 
+    private static final String CAMERAS_DISABLED = "ui.disableCameras";
+
     @Inject
     private Config config;
 
@@ -90,6 +92,7 @@ public class ShareResource extends BaseResource {
             share.setReadonly(true);
             share.setLimitCommands(user.getLimitCommands() || !config.getBoolean(Keys.WEB_SHARE_DEVICE_COMMANDS));
             share.setDisableReports(user.getDisableReports() || !config.getBoolean(Keys.WEB_SHARE_DEVICE_REPORTS));
+            copyCameraRestriction(user, share);
 
             share.setId(storage.addObject(share, new Request(new Columns.Exclude("id"))));
 
@@ -97,11 +100,23 @@ public class ShareResource extends BaseResource {
         } else {
             // ya existe un enlace de este equipo: se renueva su vencimiento y se entrega un token nuevo
             share.setExpirationTime(expiration);
+            copyCameraRestriction(user, share);
             storage.updateObject(share, new Request(
-                    new Columns.Include("expirationTime"), new Condition.Equals("id", share.getId())));
+                    new Columns.Include("expirationTime", "attributes"), new Condition.Equals("id", share.getId())));
         }
 
         return tokenManager.generateToken(share.getId(), expiration);
+    }
+
+    /**
+     * A shared link must not show the cameras when they are disabled for the user who shares it.
+     */
+    private static void copyCameraRestriction(User user, User share) {
+        if (user.getBoolean(CAMERAS_DISABLED)) {
+            share.set(CAMERAS_DISABLED, true);
+        } else {
+            share.removeAttribute(CAMERAS_DISABLED);
+        }
     }
 
     @Path("device")

@@ -35,6 +35,7 @@ import SelectField from '../common/components/SelectField';
 import PasswordField from '../common/components/PasswordField';
 import TotpQrCodeButton from '../common/components/TotpQrCodeButton';
 import SettingsMenu from './components/SettingsMenu';
+import PhoneChangeDialog from './components/PhoneChangeDialog';
 import useCommonUserAttributes from '../common/attributes/useCommonUserAttributes';
 import { useAdministrator, useRestriction, useManager } from '../common/util/permissions';
 import { useCatch } from '../reactHelper';
@@ -52,6 +53,7 @@ const UserPage = () => {
   const admin = useAdministrator();
   const manager = useManager();
   const fixedEmail = useRestriction('fixedEmail');
+  const [phoneDialog, setPhoneDialog] = useState(false);
 
   const currentUser = useSelector((state) => state.session.user);
   const registrationEnabled = useSelector((state) => state.session.server.registration);
@@ -158,6 +160,40 @@ const UserPage = () => {
                 label={t('userEmail')}
                 disabled={fixedEmail && item.id === currentUser.id}
               />
+              <TextField
+                value={item.phone || ''}
+                onChange={(e) => setItem({ ...item, phone: e.target.value })}
+                label={t('sharedPhone')}
+                placeholder={!admin && item.id === currentUser.id ? t('userPhoneAdd') : undefined}
+                helperText={!admin && item.id === currentUser.id ? t('userPhoneHelp') : undefined}
+                onClick={
+                  !admin && item.id === currentUser.id ? () => setPhoneDialog(true) : undefined
+                }
+                slotProps={
+                  !admin && item.id === currentUser.id
+                    ? {
+                        input: {
+                          readOnly: true,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Button size="small" onClick={() => setPhoneDialog(true)}>
+                                {t(item.phone ? 'userPhoneChange' : 'userPhoneAddButton')}
+                              </Button>
+                            </InputAdornment>
+                          ),
+                        },
+                      }
+                    : undefined
+                }
+              />
+              <PhoneChangeDialog
+                open={phoneDialog}
+                onClose={() => setPhoneDialog(false)}
+                onChanged={(user) => {
+                  setItem({ ...item, phone: user.phone });
+                  dispatch(sessionActions.updateUser(user));
+                }}
+              />
               {!openIdForced && (
                 <PasswordField
                   onChange={(e) => setItem({ ...item, password: e.target.value })}
@@ -196,11 +232,6 @@ const UserPage = () => {
               <Typography variant="subtitle1">{t('sharedPreferences')}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
-              <TextField
-                value={item.phone || ''}
-                onChange={(e) => setItem({ ...item, phone: e.target.value })}
-                label={t('sharedPhone')}
-              />
               <FormControl>
                 <InputLabel>{t('mapDefault')}</InputLabel>
                 <Select

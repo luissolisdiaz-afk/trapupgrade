@@ -89,10 +89,10 @@ index 5026acf..0dadbf9 100644
      }
 diff --git a/src/main/java/org/traccar/api/resource/AlarmFileResource.java b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
 new file mode 100644
-index 0000000..f227332
+index 0000000..3515e4f
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/AlarmFileResource.java
-@@ -0,0 +1,166 @@
+@@ -0,0 +1,197 @@
 +/*
 + * Copyright 2026 Anton Tananaev (anton@traccar.org)
 + *
@@ -136,6 +136,8 @@ index 0000000..f227332
 +import java.util.Collection;
 +import java.util.Comparator;
 +import java.util.Locale;
++import java.util.concurrent.Semaphore;
++import java.util.concurrent.TimeUnit;
 +import java.util.regex.Pattern;
 +
 +/**
@@ -149,6 +151,7 @@ index 0000000..f227332
 +    private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
 +    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
 +    private static final long MAX_CLIP_SIZE = 64L * 1024 * 1024;
++    private static final Semaphore CONVERSIONS = new Semaphore(2);
 +
 +    public record AlarmFile(String name, String kind, long size) { }
 +
@@ -221,14 +224,42 @@ index 0000000..f227332
 +        return Response.ok(file, type).build();
 +    }
 +
-+    private AlarmClipConverter.Result convert(File file) {
++    /**
++     * Converts a clip once and keeps the result in a hidden .cache folder next to it (transport stream plus frame
++     * count), so playing a video does not read and convert the whole clip into memory on every request. At most
++     * two conversions run at the same time.
++     */
++    private AlarmClipConverter.Result convert(long deviceId, String label, String name) throws StorageException {
++        File file = resolve(deviceId, label, name);
++        File cache = new File(file.getParentFile(), ".cache");
++        File stream = new File(cache, name + ".ts");
++        File frames = new File(cache, name + ".frames");
 +        try {
 +            if (!file.isFile() || file.length() > MAX_CLIP_SIZE) {
 +                throw new WebApplicationException(Response.Status.NOT_FOUND);
 +            }
-+            return AlarmClipConverter.toTransportStream(Files.readAllBytes(file.toPath()));
-+        } catch (IOException e) {
++            if (stream.isFile() && frames.isFile() && stream.lastModified() >= file.lastModified()) {
++                return new AlarmClipConverter.Result(Files.readAllBytes(stream.toPath()),
++                        Integer.parseInt(Files.readString(frames.toPath()).trim()));
++            }
++            if (!CONVERSIONS.tryAcquire(10, TimeUnit.SECONDS)) {
++                throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
++            }
++            try {
++                AlarmClipConverter.Result result = AlarmClipConverter.toTransportStream(
++                        Files.readAllBytes(file.toPath()));
++                Files.createDirectories(stream.toPath().getParent());
++                Files.write(stream.toPath(), result.data());
++                Files.writeString(frames.toPath(), Integer.toString(result.frames()));
++                return result;
++            } finally {
++                CONVERSIONS.release();
++            }
++        } catch (IOException | NumberFormatException e) {
 +            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
++        } catch (InterruptedException e) {
++            Thread.currentThread().interrupt();
++            throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
 +        }
 +    }
 +
@@ -239,7 +270,7 @@ index 0000000..f227332
 +            @PathParam("label") String label,
 +            @PathParam("name") String name) throws StorageException {
 +
-+        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
++        AlarmClipConverter.Result clip = convert(deviceId, label, name);
 +        double duration = clip.durationSeconds();
 +        String playlist = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n"
 +                + "#EXT-X-TARGETDURATION:" + (int) Math.ceil(duration) + "\n#EXT-X-MEDIA-SEQUENCE:0\n"
@@ -254,7 +285,7 @@ index 0000000..f227332
 +            @PathParam("label") String label,
 +            @PathParam("name") String name) throws StorageException {
 +
-+        AlarmClipConverter.Result clip = convert(resolve(deviceId, label, name));
++        AlarmClipConverter.Result clip = convert(deviceId, label, name);
 +        return Response.ok(clip.data(), "video/mp2t").build();
 +    }
 +
@@ -515,12 +546,75 @@ index 0000000..8500b4e
 +    }
 +
 +}
+diff --git a/src/main/java/org/traccar/api/resource/NotificationResource.java b/src/main/java/org/traccar/api/resource/NotificationResource.java
+index 38e1a95..a24d596 100644
+--- a/src/main/java/org/traccar/api/resource/NotificationResource.java
++++ b/src/main/java/org/traccar/api/resource/NotificationResource.java
+@@ -46,7 +46,9 @@ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.LinkedList;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ExecutionException;
+ import java.util.stream.Collectors;
+ 
+@@ -57,6 +59,32 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationResource.class);
+ 
++    private static final int TEST_LIMIT = 10;
++    private static final long TEST_WINDOW = 60 * 60 * 1000L;
++
++    /**
++     * Test notifications per user in the current window: start time and count. Each test goes out through every
++     * channel (email, WhatsApp, SMS) from the company accounts, so non-administrators get a small hourly quota.
++     */
++    private static final Map<Long, long[]> TEST_USAGE = new ConcurrentHashMap<>();
++
++    private void checkTestLimit(User user) {
++        if (user.getAdministrator()) {
++            return;
++        }
++        long now = System.currentTimeMillis();
++        long[] usage = TEST_USAGE.compute(user.getId(), (id, value) -> {
++            if (value == null || now - value[0] > TEST_WINDOW) {
++                return new long[] {now, 1};
++            }
++            value[1]++;
++            return value;
++        });
++        if (usage[1] > TEST_LIMIT) {
++            throw new SecurityException("Too many test notifications");
++        }
++    }
++
+     @Inject
+     private NotificatorManager notificatorManager;
+ 
+@@ -94,6 +122,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
+     @Path("test")
+     public Response testMessage() throws ExecutionException, InterruptedException, StorageException {
+         User user = permissionsService.getUser(getUserId());
++        checkTestLimit(user);
+         for (Typed method : notificatorManager.getAllNotificatorTypes()) {
+             notificatorManager.getNotificator(method.type()).sendAsync(null, user, new Event("test", 0), null).get();
+         }
+@@ -105,6 +134,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
+     public Response testMessage(@PathParam("notificator") String notificator)
+             throws ExecutionException, InterruptedException, StorageException {
+         User user = permissionsService.getUser(getUserId());
++        checkTestLimit(user);
+         notificatorManager.getNotificator(notificator).sendAsync(null, user, new Event("test", 0), null).get();
+         return Response.noContent().build();
+     }
 diff --git a/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
 new file mode 100644
-index 0000000..89b895c
+index 0000000..80def45
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/NotificationTemplateResource.java
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,110 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -537,7 +631,10 @@ index 0000000..89b895c
 +package org.traccar.api.resource;
 +
 +import org.traccar.api.BaseResource;
++import org.traccar.model.User;
++import org.traccar.model.UserRestrictions;
 +import org.traccar.notification.CustomTemplateStore;
++import org.traccar.storage.StorageException;
 +
 +import jakarta.inject.Inject;
 +import jakarta.ws.rs.Consumes;
@@ -573,11 +670,28 @@ index 0000000..89b895c
 +        return store.getAll(getUserId());
 +    }
 +
++    private static final int MAX_TEMPLATES = 60;
++
++    /**
++     * Shared link users and read only users can not write templates (each one is a file on the server).
++     */
++    private void checkWrite() throws StorageException {
++        User user = permissionsService.getUser(getUserId());
++        if (user.getTemporary()) {
++            throw new SecurityException("Temporary user");
++        }
++        permissionsService.checkRestriction(getUserId(), UserRestrictions::getReadonly);
++    }
++
 +    @PUT
 +    @Path("{name}")
-+    public Response put(@PathParam("name") String name, Map<String, String> body) {
++    public Response put(@PathParam("name") String name, Map<String, String> body) throws StorageException {
 +        if (!CustomTemplateStore.isValidName(name)) {
 +            throw badRequest("Invalid name");
++        }
++        checkWrite();
++        if (store.get(getUserId(), name) == null && store.getAll(getUserId()).size() >= MAX_TEMPLATES) {
++            throw badRequest("Too many custom templates");
 +        }
 +        String subject = body != null ? body.get("subject") : null;
 +        String text = body != null ? body.get("body") : null;
@@ -597,10 +711,11 @@ index 0000000..89b895c
 +
 +    @DELETE
 +    @Path("{name}")
-+    public Response delete(@PathParam("name") String name) {
++    public Response delete(@PathParam("name") String name) throws StorageException {
 +        if (!CustomTemplateStore.isValidName(name)) {
 +            throw badRequest("Invalid name");
 +        }
++        checkWrite();
 +        try {
 +            store.delete(getUserId(), name);
 +        } catch (IOException e) {
@@ -610,12 +725,216 @@ index 0000000..89b895c
 +    }
 +
 +}
+diff --git a/src/main/java/org/traccar/api/resource/PhoneResource.java b/src/main/java/org/traccar/api/resource/PhoneResource.java
+new file mode 100644
+index 0000000..160d44d
+--- /dev/null
++++ b/src/main/java/org/traccar/api/resource/PhoneResource.java
+@@ -0,0 +1,198 @@
++/*
++ * Copyright 2026 Roadsafe
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.traccar.api.resource;
++
++import org.traccar.api.BaseResource;
++import org.traccar.helper.LogAction;
++import org.traccar.mail.MailManager;
++import org.traccar.model.ObjectOperation;
++import org.traccar.model.User;
++import org.traccar.model.UserRestrictions;
++import org.traccar.notificators.NotificatorEvolution;
++import org.traccar.session.cache.CacheManager;
++import org.traccar.storage.StorageException;
++import org.traccar.storage.query.Columns;
++import org.traccar.storage.query.Condition;
++import org.traccar.storage.query.Request;
++
++import jakarta.inject.Inject;
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.ws.rs.Consumes;
++import jakarta.ws.rs.POST;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.Produces;
++import jakarta.ws.rs.WebApplicationException;
++import jakarta.ws.rs.core.Context;
++import jakarta.ws.rs.core.MediaType;
++import jakarta.ws.rs.core.Response;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.SecureRandom;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ExecutionException;
++
++/**
++ * Users change their own phone number with a verification code. Notifications (WhatsApp, SMS) are sent to this
++ * number from the company accounts, so the number is only saved after the code is confirmed. The code goes by
++ * email to the account (decision of the owner); only when email is not configured it goes by WhatsApp to the new
++ * number.
++ */
++@Path("phone")
++@Produces(MediaType.APPLICATION_JSON)
++@Consumes(MediaType.APPLICATION_JSON)
++public class PhoneResource extends BaseResource {
++
++    static final long CODE_VALIDITY = 10 * 60 * 1000L;
++    static final int MAX_ATTEMPTS = 5;
++    static final int MAX_REQUESTS = 3;
++    static final long REQUEST_WINDOW = 60 * 60 * 1000L;
++
++    private static final SecureRandom RANDOM = new SecureRandom();
++
++    record Pending(String phone, String code, long expires, int attempts) {
++    }
++
++    public record CodeRequest(String phone) {
++    }
++
++    public record CodeConfirmation(String code) {
++    }
++
++    public record CodeChannel(String channel) {
++    }
++
++    private static final Map<Long, Pending> PENDING = new ConcurrentHashMap<>();
++    private static final Map<Long, long[]> REQUESTS = new ConcurrentHashMap<>();
++
++    @Inject
++    private NotificatorEvolution notificatorEvolution;
++
++    @Inject
++    private MailManager mailManager;
++
++    @Inject
++    private CacheManager cacheManager;
++
++    @Inject
++    private LogAction actionLogger;
++
++    @Context
++    private HttpServletRequest request;
++
++    private static WebApplicationException badRequest(String message) {
++        return new WebApplicationException(Response.status(Response.Status.BAD_REQUEST).entity(message).build());
++    }
++
++    /**
++     * Keeps digits and a leading plus sign. Returns null when it does not look like a phone number.
++     */
++    static String normalize(String phone) {
++        if (phone == null) {
++            return null;
++        }
++        String trimmed = phone.trim();
++        String digits = trimmed.replaceAll("[^0-9]", "");
++        if (digits.length() < 8 || digits.length() > 15 || !trimmed.matches("[+0-9 ()-]+")) {
++            return null;
++        }
++        return (trimmed.startsWith("+") ? "+" : "") + digits;
++    }
++
++    private static void checkRequestLimit(long userId) {
++        long now = System.currentTimeMillis();
++        long[] usage = REQUESTS.compute(userId, (id, value) -> {
++            if (value == null || now - value[0] > REQUEST_WINDOW) {
++                return new long[] {now, 1};
++            }
++            value[1]++;
++            return value;
++        });
++        if (usage[1] > MAX_REQUESTS) {
++            throw new SecurityException("Too many verification codes");
++        }
++    }
++
++    private User getWritableUser() throws StorageException {
++        User user = permissionsService.getUser(getUserId());
++        if (user.getTemporary()) {
++            throw new SecurityException("Temporary user");
++        }
++        permissionsService.checkRestriction(getUserId(), UserRestrictions::getReadonly);
++        return user;
++    }
++
++    @POST
++    @Path("code")
++    public CodeChannel requestCode(CodeRequest body) throws StorageException, InterruptedException {
++        User user = getWritableUser();
++        String phone = normalize(body != null ? body.phone() : null);
++        if (phone == null) {
++            throw badRequest("Invalid phone number");
++        }
++        checkRequestLimit(user.getId());
++
++        String code = String.format("%06d", RANDOM.nextInt(1_000_000));
++        String text = "Tu código Roadsafe para confirmar este teléfono es " + code
++                + ". Vence en 10 minutos. Si no lo pediste, ignora este mensaje.";
++        String channel;
++        try {
++            if (mailManager.getEmailEnabled()) {
++                mailManager.sendMessage(user, true, "Código para cambiar tu teléfono",
++                        "<p>" + text + "</p><p>Teléfono nuevo: " + phone + "</p>").get();
++                channel = "email";
++            } else if (NotificatorEvolution.isConfigured(cacheManager.getServer())) {
++                notificatorEvolution.sendText(phone, text).get();
++                channel = "whatsapp";
++            } else {
++                throw new WebApplicationException(Response.status(Response.Status.SERVICE_UNAVAILABLE)
++                        .entity("Phone verification is not available").build());
++            }
++        } catch (ExecutionException e) {
++            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
++                    .entity("Failed to send verification code").build());
++        }
++
++        PENDING.put(user.getId(), new Pending(phone, code, System.currentTimeMillis() + CODE_VALIDITY, 0));
++        return new CodeChannel(channel);
++    }
++
++    @POST
++    @Path("confirm")
++    public User confirm(CodeConfirmation body) throws Exception {
++        User user = getWritableUser();
++        String code = body != null && body.code() != null ? body.code().trim() : "";
++        Pending pending = PENDING.computeIfPresent(user.getId(), (id, value) ->
++                new Pending(value.phone(), value.code(), value.expires(), value.attempts() + 1));
++        if (pending == null || pending.expires() < System.currentTimeMillis() || pending.attempts() > MAX_ATTEMPTS) {
++            PENDING.remove(user.getId());
++            throw badRequest("Invalid or expired code");
++        }
++        if (!MessageDigest.isEqual(
++                pending.code().getBytes(StandardCharsets.US_ASCII), code.getBytes(StandardCharsets.US_ASCII))) {
++            throw badRequest("Invalid or expired code");
++        }
++        PENDING.remove(user.getId());
++
++        user.setPhone(pending.phone());
++        storage.updateObject(user, new Request(
++                new Columns.Include("phone"), new Condition.Equals("id", user.getId())));
++        cacheManager.invalidateObject(true, User.class, user.getId(), ObjectOperation.UPDATE);
++        actionLogger.edit(request, getUserId(), user);
++        return user;
++    }
++
++}
 diff --git a/src/main/java/org/traccar/api/resource/RecordingResource.java b/src/main/java/org/traccar/api/resource/RecordingResource.java
 new file mode 100644
-index 0000000..6b1dfde
+index 0000000..ebe7807
 --- /dev/null
 +++ b/src/main/java/org/traccar/api/resource/RecordingResource.java
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,145 @@
 +/*
 + * Copyright 2026 Anton Tananaev (anton@traccar.org)
 + *
@@ -639,6 +958,7 @@ index 0000000..6b1dfde
 +import org.traccar.media.RecordingManager;
 +import org.traccar.model.Command;
 +import org.traccar.model.Device;
++import org.traccar.model.UserRestrictions;
 +import org.traccar.storage.StorageException;
 +
 +import jakarta.inject.Inject;
@@ -682,6 +1002,9 @@ index 0000000..6b1dfde
 +            String type, long deviceId, int channel, Date from, Date to) throws StorageException {
 +        checkCamerasEnabled();
 +        permissionsService.checkPermission(Device.class, getUserId(), deviceId);
++        // these requests send commands to the device, so the same restriction as for other commands applies
++        // (shared links get it unless sharing commands is enabled)
++        permissionsService.checkRestriction(getUserId(), UserRestrictions::getLimitCommands);
 +        if (channel < 1 || channel > 255) {
 +            throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
 +                    .entity("Invalid channel").build());
@@ -821,7 +1144,7 @@ index 85c1a68..969962e 100644
      }
  
 diff --git a/src/main/java/org/traccar/api/resource/ShareResource.java b/src/main/java/org/traccar/api/resource/ShareResource.java
-index 818ecd8..677cb72 100644
+index 818ecd8..e7ba9d6 100644
 --- a/src/main/java/org/traccar/api/resource/ShareResource.java
 +++ b/src/main/java/org/traccar/api/resource/ShareResource.java
 @@ -35,9 +35,7 @@ import jakarta.ws.rs.FormParam;
@@ -834,18 +1157,66 @@ index 818ecd8..677cb72 100644
  import java.io.IOException;
  import java.security.GeneralSecurityException;
  import java.util.Date;
-@@ -97,7 +95,10 @@ public class ShareResource extends BaseResource {
+@@ -48,6 +46,8 @@ import java.util.Locale;
+ @Consumes(MediaType.APPLICATION_JSON)
+ public class ShareResource extends BaseResource {
+ 
++    private static final String CAMERAS_DISABLED = "ui.disableCameras";
++
+     @Inject
+     private Config config;
+ 
+@@ -92,17 +92,33 @@ public class ShareResource extends BaseResource {
+             share.setReadonly(true);
+             share.setLimitCommands(user.getLimitCommands() || !config.getBoolean(Keys.WEB_SHARE_DEVICE_COMMANDS));
+             share.setDisableReports(user.getDisableReports() || !config.getBoolean(Keys.WEB_SHARE_DEVICE_REPORTS));
++            copyCameraRestriction(user, share);
+ 
+             share.setId(storage.addObject(share, new Request(new Columns.Exclude("id"))));
  
              storage.addPermission(new Permission(User.class, share.getId(), clazz, id));
          } else {
 -            throw new WebApplicationException(Response.Status.CONFLICT);
 +            // ya existe un enlace de este equipo: se renueva su vencimiento y se entrega un token nuevo
 +            share.setExpirationTime(expiration);
++            copyCameraRestriction(user, share);
 +            storage.updateObject(share, new Request(
-+                    new Columns.Include("expirationTime"), new Condition.Equals("id", share.getId())));
++                    new Columns.Include("expirationTime", "attributes"), new Condition.Equals("id", share.getId())));
          }
  
          return tokenManager.generateToken(share.getId(), expiration);
+     }
+ 
++    /**
++     * A shared link must not show the cameras when they are disabled for the user who shares it.
++     */
++    private static void copyCameraRestriction(User user, User share) {
++        if (user.getBoolean(CAMERAS_DISABLED)) {
++            share.set(CAMERAS_DISABLED, true);
++        } else {
++            share.removeAttribute(CAMERAS_DISABLED);
++        }
++    }
++
+     @Path("device")
+     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+     @POST
+diff --git a/src/main/java/org/traccar/api/resource/UserResource.java b/src/main/java/org/traccar/api/resource/UserResource.java
+index eabd65d..d088670 100644
+--- a/src/main/java/org/traccar/api/resource/UserResource.java
++++ b/src/main/java/org/traccar/api/resource/UserResource.java
+@@ -126,6 +126,11 @@ public class UserResource extends BaseObjectResource<User> {
+             }
+         }
+ 
++        if (currentUser != null && !currentUser.getAdministrator() && currentUser.getBoolean("ui.disableCameras")) {
++            // a manager without cameras can not create users that have them
++            entity.set("ui.disableCameras", true);
++        }
++
+         entity.setId(storage.addObject(entity, new Request(new Columns.Exclude("id"))));
+         storage.updateObject(entity, new Request(
+                 new Columns.Include("hashedPassword", "salt"),
 diff --git a/src/main/java/org/traccar/api/resource/VideoStreamResource.java b/src/main/java/org/traccar/api/resource/VideoStreamResource.java
 index 315205f..1cb037c 100644
 --- a/src/main/java/org/traccar/api/resource/VideoStreamResource.java
@@ -867,7 +1238,7 @@ index 315205f..1cb037c 100644
          ByteBuf data = streamManager.getSegment(deviceId, channel, index);
          if (data == null) {
 diff --git a/src/main/java/org/traccar/api/security/PermissionsService.java b/src/main/java/org/traccar/api/security/PermissionsService.java
-index 17223ac..0661988 100644
+index 17223ac..c4dc148 100644
 --- a/src/main/java/org/traccar/api/security/PermissionsService.java
 +++ b/src/main/java/org/traccar/api/security/PermissionsService.java
 @@ -177,6 +177,11 @@ public class PermissionsService {
@@ -882,7 +1253,7 @@ index 17223ac..0661988 100644
      public void checkUserUpdate(long userId, User before, User after) throws StorageException, SecurityException {
          if (before.getAdministrator() != after.getAdministrator()
                  || before.getDeviceLimit() != after.getDeviceLimit()
-@@ -207,6 +212,11 @@ public class PermissionsService {
+@@ -207,6 +212,24 @@ public class PermissionsService {
          if (before.getFixedEmail() && !before.getEmail().equals(after.getEmail())) {
              checkAdmin(userId);
          }
@@ -891,6 +1262,19 @@ index 17223ac..0661988 100644
 +                checkAdmin(userId);
 +            }
 +        }
++        // notifications (WhatsApp, SMS) go to this number from the company account, so users can not point their
++        // own account to someone else's phone; administrators and managers of the user can change it
++        if (!Objects.equals(normalizePhone(before.getPhone()), normalizePhone(after.getPhone()))) {
++            if (userId <= 0) {
++                throw new SecurityException("Only administrators can change the phone number");
++            } else if (userId == after.getId() && !getUser(userId).getAdministrator()) {
++                throw new SecurityException("Only administrators can change the phone number");
++            }
++        }
++    }
++
++    private static String normalizePhone(String phone) {
++        return phone == null || phone.isBlank() ? null : phone.trim();
      }
  
      public <T extends BaseModel> void checkPermission(
@@ -1037,6 +1421,62 @@ index c4b8e7a..c9781e0 100644
      }
  
      public static Map<String, Class<? extends BaseProtocol>> getProtocolClasses() {
+diff --git a/src/main/java/org/traccar/database/CommandsManager.java b/src/main/java/org/traccar/database/CommandsManager.java
+index c3089c5..8373d52 100644
+--- a/src/main/java/org/traccar/database/CommandsManager.java
++++ b/src/main/java/org/traccar/database/CommandsManager.java
+@@ -22,12 +22,14 @@ import org.traccar.broadcast.BroadcastInterface;
+ import org.traccar.broadcast.BroadcastService;
+ import org.traccar.command.CommandSender;
+ import org.traccar.command.CommandSenderManager;
++import org.traccar.helper.UnitsConverter;
+ import org.traccar.model.Command;
+ import org.traccar.model.Device;
+ import org.traccar.model.Event;
+ import org.traccar.model.ObjectOperation;
+ import org.traccar.model.Position;
+ import org.traccar.model.QueuedCommand;
++import org.traccar.model.Server;
+ import org.traccar.session.ConnectionManager;
+ import org.traccar.session.DeviceSession;
+ import org.traccar.session.cache.CacheManager;
+@@ -75,6 +77,28 @@ public class CommandsManager implements BroadcastInterface {
+         broadcastService.registerListener(this);
+     }
+ 
++    /**
++     * Server attribute with the maximum speed (km/h) at which the engine can be stopped. 0 or empty disables the check.
++     */
++    public static final String LOCK_MAX_SPEED = "ui.lockMaxSpeed";
++
++    /**
++     * The web hides the engine stop button above ui.lockMaxSpeed, but the limit must also hold for direct API calls,
++     * old apps and saved or scheduled commands, because stopping a moving vehicle is dangerous.
++     */
++    private void checkEngineStopSpeed(Command command, Position position) {
++        boolean engineStop = Command.TYPE_ENGINE_STOP.equals(command.getType())
++                || "lock".equals(command.getString("quickActionKind"));
++        if (!engineStop || position == null) {
++            return;
++        }
++        Server server = cacheManager.getServer();
++        double maxSpeed = server != null ? server.getDouble(LOCK_MAX_SPEED) : 0;
++        if (maxSpeed > 0 && UnitsConverter.kphFromKnots(position.getSpeed()) > maxSpeed) {
++            throw new SecurityException("Vehicle is moving too fast to stop the engine");
++        }
++    }
++
+     public QueuedCommand sendCommand(Command command) throws Exception {
+         long deviceId = command.getDeviceId();
+         Device device = storage.getObject(Device.class, new Request(
+@@ -88,6 +112,7 @@ public class CommandsManager implements BroadcastInterface {
+                 new Condition.And(
+                         new Condition.Equals("deviceId", deviceId),
+                         new Condition.Equals("id", device.getPositionId()))));
++        checkEngineStopSpeed(command, position);
+         BaseProtocol protocol = position != null ? serverManager.getProtocol(position.getProtocol()) : null;
+ 
+         if (command.getTextChannel()) {
 diff --git a/src/main/java/org/traccar/database/MediaManager.java b/src/main/java/org/traccar/database/MediaManager.java
 index 9c84bf4..8dce0bc 100644
 --- a/src/main/java/org/traccar/database/MediaManager.java
@@ -1716,7 +2156,7 @@ index 0000000..7a45aa3
 +
 +}
 diff --git a/src/main/java/org/traccar/notification/NotificationFormatter.java b/src/main/java/org/traccar/notification/NotificationFormatter.java
-index 71ae26d..674f0b7 100644
+index 71ae26d..75fa4ec 100644
 --- a/src/main/java/org/traccar/notification/NotificationFormatter.java
 +++ b/src/main/java/org/traccar/notification/NotificationFormatter.java
 @@ -32,6 +32,10 @@ import org.traccar.session.cache.CacheManager;
@@ -1818,7 +2258,7 @@ index 71ae26d..674f0b7 100644
 +        plain.forEach((key, value) -> html.put(key, escapeHtml(value)));
 +        html.put("link", "<a href=\"" + escapeHtml(link) + "\">" + escapeHtml(link) + "</a>");
 +
-+        String subject = replace(custom.get("subject"), plain).replace("\n", " ");
++        String subject = replace(custom.get("subject"), plain).replaceAll("[\\r\\n]+", " ");
 +        String text = replace(custom.get("body"), plain);
 +        String body = "<!DOCTYPE html><html><body>"
 +                + replace(escapeHtml(custom.get("body")), html).replace("\n", "<br>")
@@ -1829,11 +2269,12 @@ index 71ae26d..674f0b7 100644
      }
  
      public NotificationMessage formatMessage(
-@@ -81,6 +169,12 @@ public class NotificationFormatter {
+@@ -81,6 +169,13 @@ public class NotificationFormatter {
          }
  
          boolean priority = notification != null && notification.getBoolean("priority");
-+        if (user != null && CustomTemplateStore.isValidName(event.getType())) {
++        // the test notification always uses the predefined text, so it can not be used to send arbitrary messages
++        if (user != null && !"test".equals(event.getType()) && CustomTemplateStore.isValidName(event.getType())) {
 +            Map<String, String> custom = customTemplateStore.get(user.getId(), event.getType());
 +            if (custom != null && custom.get("subject") != null && custom.get("body") != null) {
 +                return formatCustom(custom, velocityContext, device, event, position, priority);
@@ -1926,10 +2367,10 @@ index 5072834..1a9e082 100644
  }
 diff --git a/src/main/java/org/traccar/notificators/NotificatorEvolution.java b/src/main/java/org/traccar/notificators/NotificatorEvolution.java
 new file mode 100644
-index 0000000..fa5cf94
+index 0000000..166b42a
 --- /dev/null
 +++ b/src/main/java/org/traccar/notificators/NotificatorEvolution.java
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,140 @@
 +/*
 + * Copyright 2026 Roadsafe
 + *
@@ -2030,6 +2471,18 @@ index 0000000..fa5cf94
 +            return CompletableFuture.completedFuture(null);
 +        }
 +
++        StringBuilder text = new StringBuilder(shortMessage.digest());
++        if (position != null && (position.getLatitude() != 0 || position.getLongitude() != 0)) {
++            text.append("\nhttps://maps.google.com/?q=")
++                    .append(String.format(Locale.US, "%.6f,%.6f", position.getLatitude(), position.getLongitude()));
++        }
++        return sendText(phone, text.toString());
++    }
++
++    /**
++     * Sends a plain text from the company WhatsApp number. Also used for the phone verification code.
++     */
++    public CompletableFuture<Void> sendText(String phone, String text) {
 +        Server server = cacheManager.getServer();
 +        if (!isConfigured(server)) {
 +            return CompletableFuture.failedFuture(
@@ -2043,12 +2496,7 @@ index 0000000..fa5cf94
 +
 +        TextMessage message = new TextMessage();
 +        message.number = formatNumber(phone, countryCode);
-+        StringBuilder text = new StringBuilder(shortMessage.digest());
-+        if (position != null && (position.getLatitude() != 0 || position.getLongitude() != 0)) {
-+            text.append("\nhttps://maps.google.com/?q=")
-+                    .append(String.format(Locale.US, "%.6f,%.6f", position.getLatitude(), position.getLongitude()));
-+        }
-+        message.text = text.toString();
++        message.text = text;
 +
 +        String url = baseUrl + "/message/sendText/" + URLEncoder.encode(instance, StandardCharsets.UTF_8)
 +                .replace("+", "%20");
@@ -2217,10 +2665,10 @@ index 0000000..ddfa2a2
 +}
 diff --git a/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java
 new file mode 100644
-index 0000000..44f88ca
+index 0000000..5a2db36
 --- /dev/null
 +++ b/src/main/java/org/traccar/protocol/Jt808AttachmentProtocolDecoder.java
-@@ -0,0 +1,243 @@
+@@ -0,0 +1,268 @@
 +/*
 + * Copyright 2026 Anton Tananaev (anton@traccar.org)
 + *
@@ -2276,6 +2724,11 @@ index 0000000..44f88ca
 +
 +    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9._-]{1,80}");
 +    private static final Pattern LABEL = Pattern.compile("[0-9a-f]{32}");
++
++    // limits so that a device (or someone using its identifier) can not fill the server disk
++    static final long MAX_FILE_SIZE = 64L * 1024 * 1024;
++    static final int MAX_FILES_PER_ALARM = 32;
++    static final long MIN_FREE_SPACE = 1024L * 1024 * 1024;
 +
 +    private String lastLabel;
 +
@@ -2439,6 +2892,26 @@ index 0000000..44f88ca
 +        }
 +    }
 +
++    static boolean isWriteAllowed(File file, long offset, long length) {
++        if (offset + length > MAX_FILE_SIZE) {
++            LOGGER.warn("Alarm attachment too large: {}", file.getName());
++            return false;
++        }
++        File directory = file.getParentFile();
++        if (!file.exists()) {
++            String[] existing = directory.list();
++            if (existing != null && existing.length >= MAX_FILES_PER_ALARM) {
++                LOGGER.warn("Too many alarm attachments in {}", directory.getName());
++                return false;
++            }
++        }
++        if (directory.getUsableSpace() < MIN_FREE_SPACE) {
++            LOGGER.warn("Not enough disk space for alarm attachments");
++            return false;
++        }
++        return true;
++    }
++
 +    private void decodeData(Channel channel, SocketAddress remoteAddress, ByteBuf buf) {
 +        buf.skipBytes(4); // magic
 +        String name = readName(buf, 50);
@@ -2450,7 +2923,7 @@ index 0000000..44f88ca
 +        }
 +        String label = extractLabel(name);
 +        File file = resolve(deviceSession, label != null ? label : lastLabel, name);
-+        if (file == null) {
++        if (file == null || !isWriteAllowed(file, offset, length)) {
 +            return;
 +        }
 +        try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {
@@ -2481,7 +2954,7 @@ index 4f375d9..a400d12 100644
              @Override
              protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
 diff --git a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
-index d739c04..6f4623e 100644
+index d739c04..1ddf241 100644
 --- a/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 +++ b/src/main/java/org/traccar/protocol/Jt808ProtocolDecoder.java
 @@ -17,8 +17,10 @@ package org.traccar.protocol;
@@ -2530,10 +3003,14 @@ index d739c04..6f4623e 100644
      public static final int MSG_PARAMETER_QUERY_RESPONSE = 0x0104;
      public static final int MSG_PARAMETER_QUERY_ALL = 0x8104;
      public static final int MSG_LOCATION_QUERY = 0x8201;
-@@ -112,6 +122,47 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -112,6 +122,59 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
      private int delimiter = 0x7e;
      private Integer protocolVersion;
  
++    // a resource list larger than this is dropped, so a device can not make the server keep unlimited memory
++    private static final int MAX_RECORDING_PACKETS = 256;
++    private static final int MAX_RECORDING_SIZE = 256 * 1024;
++
 +    private RecordingManager recordingManager;
 +    private CompositeByteBuf recordingBuffer;
 +
@@ -2553,6 +3030,9 @@ index d739c04..6f4623e 100644
 +            total = buf.readUnsignedShort();
 +            sequence = buf.readUnsignedShort();
 +        }
++        if (total > MAX_RECORDING_PACKETS || sequence > total) {
++            return; // not a valid resource list, do not keep anything
++        }
 +        if (sequence == 1 && recordingBuffer != null) {
 +            recordingBuffer.release();
 +            recordingBuffer = null;
@@ -2561,7 +3041,12 @@ index d739c04..6f4623e 100644
 +            if (sequence != 1) {
 +                return; // missed the first packet
 +            }
-+            recordingBuffer = Unpooled.compositeBuffer();
++            recordingBuffer = Unpooled.compositeBuffer(MAX_RECORDING_PACKETS);
++        }
++        if (recordingBuffer.readableBytes() + bodyLength > MAX_RECORDING_SIZE) {
++            recordingBuffer.release();
++            recordingBuffer = null;
++            return;
 +        }
 +        recordingBuffer.addComponent(true, buf.readRetainedSlice(bodyLength));
 +        if (sequence >= total) {
@@ -2578,7 +3063,7 @@ index d739c04..6f4623e 100644
      public Integer getProtocolVersion() {
          return protocolVersion;
      }
-@@ -168,10 +219,43 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -168,10 +231,43 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
          }
      }
  
@@ -2622,7 +3107,7 @@ index d739c04..6f4623e 100644
          String webUrl = getConfig().getString(Keys.WEB_URL);
          int uploadPort = getConfig().getInteger(
                  Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(JimiPhotoProtocol.class)));
-@@ -440,6 +524,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -440,6 +536,12 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                  return position;
              }
  
@@ -2635,7 +3120,7 @@ index d739c04..6f4623e 100644
          } else if (type == MSG_TERMINAL_AUTH || type == MSG_HEARTBEAT_2
                  || type == MSG_PHOTO || type == MSG_TERMINAL_LOGOUT || type == MSG_TIMEZONE_SYNC) {
  
-@@ -893,15 +983,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -893,15 +995,54 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                  case 0x65:
                      buf.readUnsignedInt(); // alarm serial number
                      buf.readUnsignedByte(); // alarm status
@@ -2693,7 +3178,7 @@ index d739c04..6f4623e 100644
                      break;
                  case 0x70:
                      buf.readUnsignedInt(); // alarm serial number
-@@ -1961,4 +2090,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
+@@ -1961,4 +2102,13 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
          return null;
      }
  
@@ -2985,6 +3470,31 @@ index 0000000..a47f638
 +    }
 +
 +}
+diff --git a/src/test/java/org/traccar/api/resource/PhoneResourceTest.java b/src/test/java/org/traccar/api/resource/PhoneResourceTest.java
+new file mode 100644
+index 0000000..4c58b6d
+--- /dev/null
++++ b/src/test/java/org/traccar/api/resource/PhoneResourceTest.java
+@@ -0,0 +1,19 @@
++package org.traccar.api.resource;
++
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertNull;
++
++public class PhoneResourceTest {
++
++    @Test
++    public void testNormalize() {
++        assertEquals("+56912345678", PhoneResource.normalize(" +56 9 1234 5678 "));
++        assertEquals("912345678", PhoneResource.normalize("9 1234-5678"));
++        assertNull(PhoneResource.normalize("1234"));
++        assertNull(PhoneResource.normalize("9 1234 5678 ext"));
++        assertNull(PhoneResource.normalize(null));
++    }
++
++}
 diff --git a/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java b/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java
 index 94f038d..39c6474 100644
 --- a/src/test/java/org/traccar/handler/events/OverspeedEventHandlerTest.java
@@ -3124,6 +3634,42 @@ index 0000000..24317e0
 +        assertFalse(NotificatorEvolution.isConfigured(server));
 +        server.set("evolution.instance", "roadsafe");
 +        assertTrue(NotificatorEvolution.isConfigured(server));
++    }
++
++}
+diff --git a/src/test/java/org/traccar/protocol/Jt808AttachmentLimitsTest.java b/src/test/java/org/traccar/protocol/Jt808AttachmentLimitsTest.java
+new file mode 100644
+index 0000000..79cf9e9
+--- /dev/null
++++ b/src/test/java/org/traccar/protocol/Jt808AttachmentLimitsTest.java
+@@ -0,0 +1,30 @@
++package org.traccar.protocol;
++
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import java.io.File;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++public class Jt808AttachmentLimitsTest {
++
++    @Test
++    public void testWriteLimits(@TempDir Path directory) throws IOException {
++        File file = directory.resolve("photo.jpg").toFile();
++        assertTrue(Jt808AttachmentProtocolDecoder.isWriteAllowed(file, 0, 1024));
++        assertFalse(Jt808AttachmentProtocolDecoder.isWriteAllowed(
++                file, Jt808AttachmentProtocolDecoder.MAX_FILE_SIZE, 1));
++
++        for (int i = 0; i < Jt808AttachmentProtocolDecoder.MAX_FILES_PER_ALARM; i++) {
++            Files.createFile(directory.resolve("file" + i + ".jpg"));
++        }
++        assertFalse(Jt808AttachmentProtocolDecoder.isWriteAllowed(file, 0, 1024));
++        assertTrue(Jt808AttachmentProtocolDecoder.isWriteAllowed(directory.resolve("file0.jpg").toFile(), 0, 1024));
 +    }
 +
 +}

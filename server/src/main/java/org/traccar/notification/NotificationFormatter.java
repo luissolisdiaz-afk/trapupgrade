@@ -126,7 +126,7 @@ public class NotificationFormatter {
         plain.forEach((key, value) -> html.put(key, escapeHtml(value)));
         html.put("link", "<a href=\"" + escapeHtml(link) + "\">" + escapeHtml(link) + "</a>");
 
-        String subject = replace(custom.get("subject"), plain).replace("\n", " ");
+        String subject = replace(custom.get("subject"), plain).replaceAll("[\\r\\n]+", " ");
         String text = replace(custom.get("body"), plain);
         String body = "<!DOCTYPE html><html><body>"
                 + replace(escapeHtml(custom.get("body")), html).replace("\n", "<br>")
@@ -169,7 +169,8 @@ public class NotificationFormatter {
         }
 
         boolean priority = notification != null && notification.getBoolean("priority");
-        if (user != null && CustomTemplateStore.isValidName(event.getType())) {
+        // the test notification always uses the predefined text, so it can not be used to send arbitrary messages
+        if (user != null && !"test".equals(event.getType()) && CustomTemplateStore.isValidName(event.getType())) {
             Map<String, String> custom = customTemplateStore.get(user.getId(), event.getType());
             if (custom != null && custom.get("subject") != null && custom.get("body") != null) {
                 return formatCustom(custom, velocityContext, device, event, position, priority);
